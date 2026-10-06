@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>LabControl - Inventario del laboratorio</title>
+
+  <!-- PWA & Mobile Web App Capabilities -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LabControl">
+
+  <!-- Aplica el tema guardado antes de pintar, para evitar un parpadeo -->
+  <script>
+    try {
+      var t = localStorage.getItem('lab_tema');
+      if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.tailwind = window.tailwind || {};
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            page: 'rgb(var(--page) / <alpha-value>)',
+            surface: 'rgb(var(--surface) / <alpha-value>)',
+            sunken: 'rgb(var(--sunken) / <alpha-value>)',
+            line: 'rgb(var(--line) / <alpha-value>)',
+            ink: 'rgb(var(--ink) / <alpha-value>)',
+            muted: 'rgb(var(--muted) / <alpha-value>)',
+            subtle: 'rgb(var(--subtle) / <alpha-value>)',
+            brand: 'rgb(var(--brand) / <alpha-value>)',
+            'brand-hover': 'rgb(var(--brand-hover) / <alpha-value>)',
+            'brand-soft': 'rgb(var(--brand-soft) / <alpha-value>)',
+            'brand-ink': 'rgb(var(--brand-ink) / <alpha-value>)',
+            ok: 'rgb(var(--ok) / <alpha-value>)',
+            'ok-soft': 'rgb(var(--ok-soft) / <alpha-value>)',
+            'ok-ink': 'rgb(var(--ok-ink) / <alpha-value>)',
+            bad: 'rgb(var(--bad) / <alpha-value>)',
+            'bad-soft': 'rgb(var(--bad-soft) / <alpha-value>)',
+            'bad-ink': 'rgb(var(--bad-ink) / <alpha-value>)',
+            warn: 'rgb(var(--warn) / <alpha-value>)',
+            'warn-soft': 'rgb(var(--warn-soft) / <alpha-value>)',
+            'warn-ink': 'rgb(var(--warn-ink) / <alpha-value>)'
+          },
+          fontFamily: {
+            sans: ['Figtree', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+            display: ['"Bricolage Grotesque"', 'Figtree', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --page: 247 246 252;
+      --surface: 255 255 255;
+      --sunken: 238 234 250;
+      --line: 205 196 229;
+      --ink: 27 21 48;
+      --muted: 90 82 115;
+      --subtle: 122 114 147;
+
+      --brand: 124 58 237;
+      --brand-hover: 109 40 217;
+      --brand-soft: 243 238 255;
+      --brand-ink: 91 33 182;
+      --hero: 91 33 182;
+
+      --ok: 22 163 74;   --ok-soft: 232 246 237;   --ok-ink: 21 128 61;
+      --bad: 225 29 72;  --bad-soft: 254 236 240;  --bad-ink: 190 18 60;
+      --warn: 217 119 6; --warn-soft: 254 243 226; --warn-ink: 180 83 9;
+
+      --scrim: 27 21 48;
+
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --page: 15 11 26;
+        --surface: 23 18 42;
+        --sunken: 31 25 56;
+        --line: 46 38 80;
+        --ink: 241 237 251;
+        --muted: 167 159 194;
+        --subtle: 122 115 150;
+
+        --brand: 124 58 237;
+        --brand-hover: 139 92 246;
+        --brand-soft: 42 30 82;
+        --brand-ink: 196 181 253;
+        --hero: 76 29 149;
+
+        --ok: 74 222 128;   --ok-soft: 20 45 32;   --ok-ink: 134 239 172;
+        --bad: 251 113 133; --bad-soft: 58 22 34;  --bad-ink: 253 164 175;
+        --warn: 251 191 36; --warn-soft: 56 40 14; --warn-ink: 252 211 77;
+
+        --scrim: 0 0 0;
+      }
+      :root:not([data-theme="light"]) .ic-sol { display: inline-flex; }
+      :root:not([data-theme="light"]) .ic-luna { display: none; }
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: 15 11 26;
+      --surface: 23 18 42;
+      --sunken: 31 25 56;
+      --line: 46 38 80;
+      --ink: 241 237 251;
+      --muted: 167 159 194;
+      --subtle: 122 115 150;
+
+      --brand: 124 58 237;
+      --brand-hover: 139 92 246;
+      --brand-soft: 42 30 82;
+      --brand-ink: 196 181 253;
+      --hero: 76 29 149;
+
+      --ok: 74 222 128;   --ok-soft: 20 45 32;   --ok-ink: 134 239 172;
+      --bad: 251 113 133; --bad-soft: 58 22 34;  --bad-ink: 253 164 175;
+      --warn: 251 191 36; --warn-soft: 56 40 14; --warn-ink: 252 211 77;
+
+      --scrim: 0 0 0;
+    }
+    :root[data-theme="dark"] .ic-sol { display: inline-flex; }
+    :root[data-theme="dark"] .ic-luna { display: none; }
+
+    html { background: rgb(var(--page)); scroll-padding-top: env(safe-area-inset-top, 0px); }
+    body { background: rgb(var(--page)); color: rgb(var(--ink)); -webkit-font-smoothing: antialiased; }
+    :focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; }
+    ::selection { background: rgb(var(--brand) / .25); }
+
+    .ic-sol { display: none; }
+    .ic-luna { display: inline-flex; }
+    .ic-sol, .ic-luna { align-items: center; justify-content: center; }
+
+    .scrim { background: rgb(var(--scrim) / .55); }
+
+    .panel { background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: 16px; box-shadow: 0 1px 2px rgb(var(--ink) / .04); }
+
+    .lbl { display: block; font-size: .8125rem; font-weight: 600; margin-bottom: .375rem; color: rgb(var(--ink)); }
+
+    .input {
+      background: rgb(var(--surface)); border: 1.5px solid rgb(var(--line)); border-radius: 10px;
+      padding: .6rem .8rem; font-size: .875rem; color: rgb(var(--ink));
+      box-shadow: 0 1px 2px rgb(var(--ink) / .04) inset;
+      transition: border-color .15s, box-shadow .15s, background-color .15s;
+    }
+    .input::placeholder { color: rgb(var(--subtle)); }
+    .input:hover { border-color: rgb(var(--brand) / .5); }
+    .input:focus { outline: none; border-color: rgb(var(--brand)); box-shadow: 0 0 0 3px rgb(var(--brand) / .2); }
+    select.input { background-color: rgb(var(--surface)); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      padding: .55rem 1rem; border-radius: 10px; font-size: .875rem; font-weight: 600;
+      white-space: nowrap; cursor: pointer; border: 1px solid transparent;
+      transition: background-color .15s, border-color .15s, color .15s;
+    }
+    .btn-sm { padding: .4rem .75rem; font-size: .8125rem; }
+    .btn-square { padding: .5rem; border-radius: 9px; }
+    .btn-primary { background: rgb(var(--brand)); color: #fff; }
+    .btn-primary:hover { background: rgb(var(--brand-hover)); }
+    .btn-outline { background: rgb(var(--surface)); border-color: rgb(var(--line)); color: rgb(var(--ink)); }
+    .btn-outline:hover { border-color: rgb(var(--brand) / .6); color: rgb(var(--brand-ink)); }
+    .btn-ghost { color: rgb(var(--muted)); }
+    .btn-ghost:hover { background: rgb(var(--sunken)); color: rgb(var(--ink)); }
+    .btn-danger:hover { background: rgb(var(--bad-soft)); color: rgb(var(--bad-ink)); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: .375rem;
+      padding: .2rem .6rem; border-radius: 999px; font-size: .75rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .badge-ok { background: rgb(var(--ok-soft)); color: rgb(var(--ok-ink)); }
+    .badge-bad { background: rgb(var(--bad-soft)); color: rgb(var(--bad-ink)); }
+    .badge-brand { background: rgb(var(--brand-soft)); color: rgb(var(--brand-ink)); }
+    .badge-neutral { background: rgb(var(--sunken)); color: rgb(var(--muted)); }
+
+    .nav-item {
+      display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left;
+      padding: .6rem .75rem; border-radius: 10px; font-size: .875rem; font-weight: 500;
+      color: rgb(var(--muted)); transition: background-color .15s, color .15s;
+    }
+    .nav-item:hover { background: rgb(var(--sunken)); color: rgb(var(--ink)); }
+    .nav-item.is-active { background: rgb(var(--brand-soft)); color: rgb(var(--brand-ink)); font-weight: 600; }
+
+    .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgb(var(--sunken)); border: 1px solid rgb(var(--line)); max-width: 100%; overflow-x: auto; }
+    .seg-btn { white-space: nowrap; padding: .4rem .8rem; border-radius: 999px; font-size: .8125rem; font-weight: 500; color: rgb(var(--muted)); transition: color .15s, background-color .15s; }
+    .seg-btn:hover { color: rgb(var(--ink)); }
+    .seg-btn.is-active { background: rgb(var(--surface)); color: rgb(var(--brand-ink)); font-weight: 600; box-shadow: 0 1px 2px rgb(var(--ink) / .1); }
+
+    .sw-card {
+      padding: .75rem; min-height: 6.5rem; border-radius: 12px; border: 1px solid rgb(var(--line));
+      display: flex; flex-direction: column; justify-content: space-between; text-align: left; user-select: none;
+      background: rgb(var(--surface)); color: rgb(var(--muted)); transition: border-color .15s, background-color .15s;
+    }
+    .sw-card:hover { border-color: rgb(var(--subtle)); }
+    .sw-ok { background: rgb(var(--ok-soft)); border-color: rgb(var(--ok) / .45); color: rgb(var(--ok-ink)); }
+    .sw-bad { background: rgb(var(--bad-soft)); border-color: rgb(var(--bad) / .45); color: rgb(var(--bad-ink)); }
+
+    .tabular { font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 640px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body class="h-full flex overflow-hidden font-sans">
+
+  <!-- ============ INICIO DE SESIÓN ============ -->
+  <div id="pantalla-login" class="fixed inset-0 z-[60] bg-page overflow-y-auto">
+    <div class="min-h-full grid lg:grid-cols-2">
+
+      <div class="hidden lg:flex flex-col justify-between p-12 text-white" style="background: rgb(var(--hero));">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+            <i data-lucide="terminal" class="w-5 h-5"></i>
+          </div>
+          <span class="font-display font-bold text-xl">LabControl</span>
+        </div>
+        <div class="max-w-md">
+          <h2 class="font-display text-4xl font-semibold leading-tight">Inventario del laboratorio de programación</h2>
+          <p class="mt-4 text-white/70 leading-relaxed">Equipos, sistemas operativos, programas instalados y bitácora de mantenimiento en un solo lugar.</p>
+        </div>
+        <p class="text-sm text-white/60">Acceso para encargados y prestadores de servicio.</p>
+      </div>
+
+      <div class="relative flex items-center justify-center p-6">
+        <button type="button" onclick="alternarTema()" class="btn btn-outline btn-square absolute top-4 right-4" aria-label="Cambiar entre modo claro y oscuro" title="Cambiar tema">
+          <span class="ic-luna"><i data-lucide="moon" class="w-4 h-4"></i></span>
+          <span class="ic-sol"><i data-lucide="sun" class="w-4 h-4"></i></span>
+        </button>
+
+        <div class="w-full max-w-sm space-y-6 py-10">
+          <div class="lg:hidden flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center">
+              <i data-lucide="terminal" class="w-5 h-5"></i>
+            </div>
+            <span class="font-display font-bold text-xl">LabControl</span>
+          </div>
+
+          <div>
+            <h1 class="font-display text-3xl font-semibold">Iniciar sesión</h1>
+            <p class="text-sm text-muted mt-1.5">Escribe tu usuario y contraseña para entrar al inventario.</p>
+          </div>
+
+          <form id="form-alta-inicial" class="hidden space-y-4">
+            <div class="rounded-xl bg-brand-soft text-brand-ink p-4 text-sm">
+              Todavía no hay cuentas. Crea la primera: quedará como <strong>administrador</strong> del laboratorio.
+            </div>
+            <div>
+              <label for="alta-inicial-nombre" class="lbl">Tu nombre completo</label>
+              <input type="text" id="alta-inicial-nombre" required class="input w-full">
+            </div>
+            <div>
+              <label for="alta-inicial-correo" class="lbl">Correo</label>
+              <input type="email" id="alta-inicial-correo" required autocomplete="username" class="input w-full">
+            </div>
+            <div>
+              <label for="alta-inicial-clave" class="lbl">Contraseña</label>
+              <input type="password" id="alta-inicial-clave" required minlength="6" placeholder="Al menos 6 caracteres" autocomplete="new-password" class="input w-full">
+            </div>
+            <p id="alta-inicial-error" class="hidden text-sm text-bad-ink flex items-center gap-1.5" role="alert">
+              <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> <span id="alta-inicial-error-texto"></span>
+            </p>
+            <button type="submit" class="btn btn-primary w-full py-2.5">Crear cuenta de administrador</button>
+          </form>
+
+          <form id="form-login" class="space-y-4">
+            <div>
+              <label for="login-usuario" class="lbl">Correo</label>
+              <input type="email" id="login-usuario" required autocomplete="username" autocapitalize="none" spellcheck="false" class="input w-full">
+            </div>
+            <div>
+              <label for="login-clave" class="lbl">Contraseña</label>
+              <input type="password" id="login-clave" required autocomplete="current-password" class="input w-full">
+            </div>
+            <p id="login-error" class="hidden text-sm text-bad-ink flex items-center gap-1.5" role="alert">
+              <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Usuario o contraseña incorrectos.
+            </p>
+            <button type="submit" class="btn btn-primary w-full py-2.5">Entrar</button>
+          </form>
+
+          <p id="login-cargando" class="text-sm text-muted flex items-center gap-2">
+            <i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Conectando con el servidor...
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay-menu" onclick="cerrarMenu()" class="scrim fixed inset-0 z-30 hidden lg:hidden"></div>
+
+  <!-- ============ MENÚ LATERAL ============ -->
+  <aside id="sidebar"
+    class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full lg:translate-x-0 lg:static transition-transform duration-200 bg-surface border-r border-line px-4 flex flex-col justify-between shrink-0"
+    style="padding-top: calc(1.25rem + env(safe-area-inset-top, 0px)); padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));">
+    <div class="space-y-8">
+      <div class="flex items-center gap-3 px-2">
+        <div class="w-9 h-9 rounded-[10px] bg-brand text-white flex items-center justify-center shrink-0">
+          <i data-lucide="terminal" class="w-5 h-5"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-display font-bold text-lg leading-none">LabControl</p>
+          <p class="text-xs text-muted mt-1">ProgLab v4.0</p>
+        </div>
+        <button onclick="cerrarMenu()" class="lg:hidden btn btn-ghost btn-square" aria-label="Cerrar menú">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <nav class="space-y-1">
+        <button id="btn-nav-dashboard" onclick="cambiarVentana('dashboard')" class="nav-item">
+          <i data-lucide="layout-dashboard" class="w-[18px] h-[18px]"></i> Panel principal
+        </button>
+        <button id="btn-nav-pcs" onclick="cambiarVentana('pcs')" class="nav-item">
+          <i data-lucide="monitor" class="w-[18px] h-[18px]"></i> Equipos de cómputo
+        </button>
+        <button id="btn-nav-bitacora" onclick="cambiarVentana('bitacora')" class="nav-item">
+          <i data-lucide="history" class="w-[18px] h-[18px]"></i> Bitácora
+        </button>
+        <button id="btn-nav-cuentas" onclick="cambiarVentana('cuentas')" class="nav-item hidden">
+          <i data-lucide="users" class="w-[18px] h-[18px]"></i> Cuentas
+        </button>
+      </nav>
+    </div>
+
+    <div class="space-y-3">
+      <div class="rounded-xl border border-line p-3 space-y-3">
+        <div class="flex items-center gap-3">
+          <div id="sesion-inicial" class="w-9 h-9 shrink-0 rounded-full bg-brand-soft text-brand-ink font-semibold text-sm flex items-center justify-center">?</div>
+          <div class="min-w-0">
+            <p id="sesion-nombre" class="text-sm font-semibold truncate">-</p>
+            <p id="sesion-rol" class="text-xs text-muted">-</p>
+          </div>
+        </div>
+        <button onclick="cerrarSesion()" class="btn btn-outline btn-sm w-full">
+          <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar sesión
+        </button>
+      </div>
+      <p id="aviso-sin-conexion" class="hidden items-start gap-2 text-xs text-bad-ink px-1 leading-relaxed">
+        <i data-lucide="wifi-off" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
+        <span>Sin conexión con el servidor. Los cambios no se están guardando.</span>
+      </p>
+    </div>
+  </aside>
+
+  <!-- ============ CONTENIDO ============ -->
+  <div class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+
+    <header class="border-b border-line bg-surface px-4 sm:px-8 py-3.5 sm:py-4 flex justify-between items-center gap-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <button onclick="abrirMenu()" class="lg:hidden btn btn-ghost btn-square -ml-2" aria-label="Abrir menú">
+          <i data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+        <div class="min-w-0">
+          <h2 id="titulo-ventana" class="font-display text-xl sm:text-2xl font-semibold tracking-tight truncate">Panel principal</h2>
+          <p id="subtitulo-ventana" class="hidden sm:block text-sm text-muted">Resumen del laboratorio</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 shrink-0">
+        <span id="reloj-vivo" class="hidden sm:block text-sm text-muted tabular">00:00:00</span>
+        <button type="button" onclick="alternarTema()" class="btn btn-outline btn-square" aria-label="Cambiar entre modo claro y oscuro" title="Cambiar tema">
+          <span class="ic-luna"><i data-lucide="moon" class="w-4 h-4"></i></span>
+          <span class="ic-sol"><i data-lucide="sun" class="w-4 h-4"></i></span>
+        </button>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 sm:p-8">
+      <div class="max-w-7xl mx-auto">
+
+        <!-- VENTANA 1: PANEL PRINCIPAL -->
+        <section id="ventana-dashboard" class="space-y-6">
+
+          <div class="rounded-2xl p-6 sm:p-8 text-white" style="background: rgb(var(--hero));">
+            <p class="text-sm text-white/70">Estado del laboratorio</p>
+            <p id="hero-frase" class="font-display text-2xl sm:text-4xl font-semibold leading-tight mt-2 max-w-2xl">-</p>
+
+            <div id="hero-barra" class="mt-6 h-2.5 rounded-full bg-white/15 overflow-hidden flex gap-0.5" role="img" aria-label="Proporción de equipos funcionales">
+              <div id="hero-barra-ok" class="h-full bg-white rounded-full" style="width: 0%"></div>
+              <div id="hero-barra-bad" class="h-full rounded-full" style="width: 0%; background: rgb(253 164 175);"></div>
+            </div>
+
+            <dl class="mt-6 grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <dt class="text-white/70">Equipos</dt>
+                <dd id="metric-total-pcs" class="font-display text-2xl font-semibold mt-0.5 tabular">0</dd>
+              </div>
+              <div>
+                <dt class="text-white/70">Con internet</dt>
+                <dd id="metric-conectados" class="font-display text-2xl font-semibold mt-0.5 tabular">0</dd>
+              </div>
+              <div>
+                <dt class="text-white/70">Con atención</dt>
+                <dd id="metric-atencion" class="font-display text-2xl font-semibold mt-0.5 tabular">0</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section class="panel p-5 sm:p-6 space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="font-display font-semibold text-lg">Pendientes</h3>
+                <span id="contador-pendientes" class="badge badge-neutral">0</span>
+              </div>
+
+              <form id="form-pendiente" class="flex gap-2">
+                <input type="text" id="nuevo-pendiente" required placeholder="Ej. Instalar licencias de software" class="input flex-1 min-w-0">
+                <button type="submit" class="btn btn-primary">Agregar</button>
+              </form>
+
+              <ul id="lista-pendientes" class="space-y-1"></ul>
+            </section>
+
+            <section class="panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg">Fallas y reportes</h3>
+              <div class="overflow-y-auto max-h-72 pr-1">
+                <ul id="lista-atencion" class="space-y-2"></ul>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- VENTANA 2: EQUIPOS DE CÓMPUTO -->
+        <section id="ventana-pcs" class="hidden space-y-5">
+
+          <div class="flex flex-col xl:flex-row gap-3 xl:items-center justify-between">
+            <div class="relative w-full max-w-md xl:w-80 xl:shrink-0">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-subtle pointer-events-none flex">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </span>
+              <input type="text" id="input-busqueda" oninput="filtrarPCs()" placeholder="Buscar por equipo, MAC, IP o sistema" class="input w-full pl-10">
+            </div>
+
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap xl:flex-nowrap gap-2">
+              <button onclick="exportarCSV()" class="btn btn-outline">
+                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+              </button>
+              <button onclick="abrirModalCatalogoSoftware()" class="btn btn-outline">
+                <i data-lucide="box" class="w-4 h-4"></i> <span class="sm:hidden">Programas</span><span class="hidden sm:inline">Catálogo de programas</span>
+              </button>
+              <button onclick="abrirModalPC()" class="btn btn-primary col-span-2 sm:col-auto">
+                <i data-lucide="plus" class="w-4 h-4"></i> Agregar equipo
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center">
+              <div class="seg">
+                <button onclick="setFiltroEstado('todos')" id="filtro-todos" class="seg-btn is-active">Todos</button>
+                <button onclick="setFiltroEstado('funcional')" id="filtro-funcional" class="seg-btn">Funcionales</button>
+                <button onclick="setFiltroEstado('atencion')" id="filtro-atencion" class="seg-btn">Con atención</button>
+                <button onclick="setFiltroEstado('sin_ip')" id="filtro-sin_ip" class="seg-btn">Sin conexión</button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 sm:contents">
+                <select id="filtro-so" onchange="cambiarFiltroSO(this.value)" aria-label="Filtrar por sistema operativo" class="input w-full sm:w-auto"></select>
+                <select id="filtro-programa" onchange="cambiarFiltroPrograma(this.value)" aria-label="Filtrar por programa" class="input w-full sm:w-auto"></select>
+                <select id="filtro-programa-estado" onchange="cambiarFiltroProgramaEstado(this.value)" aria-label="Estado del programa" class="input hidden w-full sm:w-auto">
+                  <option value="no_instalado">Falta instalar</option>
+                  <option value="funcional">Instalado y funcional</option>
+                  <option value="no_funcional">Instalado con fallo</option>
+                </select>
+              </div>
+
+              <button onclick="limpiarFiltros()" class="btn btn-ghost btn-sm self-start sm:self-center">Limpiar filtros</button>
+            </div>
+
+            <p id="contador-pcs" class="text-sm text-muted"></p>
+          </div>
+
+          <div class="hidden xl:block panel overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-sunken text-xs font-semibold text-muted">
+                  <tr>
+                    <th class="px-4 py-3">Equipo</th>
+                    <th class="px-4 py-3">Sistema operativo</th>
+                    <th class="px-4 py-3">Red (IP y MAC)</th>
+                    <th class="px-4 py-3">Estado</th>
+                    <th class="px-4 py-3">Programas</th>
+                    <th class="px-4 py-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="lista-pcs-tabla" class="divide-y divide-line"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="lista-pcs-cards" class="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </section>
+
+        <!-- VENTANA 3: BITÁCORA -->
+        <section id="ventana-bitacora" class="hidden">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+            <div class="panel p-5 sm:p-6 space-y-4 lg:sticky lg:top-0">
+              <h3 class="font-display font-semibold text-lg">Registrar mantenimiento</h3>
+
+              <form id="form-bitacora-ventana" class="space-y-4">
+                <div>
+                  <label class="lbl" for="bitacora-pc-select">Equipo</label>
+                  <select id="bitacora-pc-select" required class="input w-full"></select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="lbl" for="bitacora-fecha-v">Fecha</label>
+                    <input type="date" id="bitacora-fecha-v" required class="input w-full">
+                  </div>
+                  <div>
+                    <label class="lbl" for="bitacora-tipo-v">Tipo</label>
+                    <select id="bitacora-tipo-v" class="input w-full">
+                      <option value="Preventivo">Preventivo</option>
+                      <option value="Correctivo">Correctivo</option>
+                      <option value="Actualización">Actualización</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="lbl" for="bitacora-desc-v">Descripción del trabajo</label>
+                  <textarea id="bitacora-desc-v" required rows="3" placeholder="Ej. Cambio de fuente de poder y limpieza general" class="input w-full"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full">Guardar registro</button>
+              </form>
+            </div>
+
+            <div class="lg:col-span-2 panel p-5 sm:p-6 space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h3 class="font-display font-semibold text-lg">Historial de mantenimiento</h3>
+                <input type="text" id="input-filtro-bitacora" oninput="renderizarBitacoraVentana()" placeholder="Filtrar por equipo, tipo o texto" class="input w-full sm:w-64">
+              </div>
+
+              <div class="overflow-y-auto max-h-[560px] pr-1">
+                <ul id="lista-bitacora-ventana-ui" class="space-y-3"></ul>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- VENTANA 4: CUENTAS -->
+        <section id="ventana-cuentas" class="hidden">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+            <div class="panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg">Dar de alta una cuenta</h3>
+              <p class="text-sm text-muted">Para encargados o prestadores de servicio social.</p>
+
+              <form id="form-nueva-cuenta" class="space-y-4">
+                <div>
+                  <label class="lbl" for="cuenta-nombre">Nombre completo</label>
+                  <input type="text" id="cuenta-nombre" required placeholder="Ej. Ana Torres" class="input w-full">
+                </div>
+                <div>
+                  <label class="lbl" for="cuenta-usuario">Correo</label>
+                  <input type="email" id="cuenta-usuario" required autocapitalize="none" spellcheck="false" placeholder="Ej. ana.torres@correo.com" class="input w-full">
+                </div>
+                <div>
+                  <label class="lbl" for="cuenta-clave">Contraseña</label>
+                  <input type="password" id="cuenta-clave" required minlength="6" placeholder="Al menos 6 caracteres" class="input w-full">
+                </div>
+                <div>
+                  <label class="lbl" for="cuenta-rol">Rol</label>
+                  <select id="cuenta-rol" class="input w-full">
+                    <option value="editor">Editor (no puede borrar)</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+                <p id="cuenta-error" class="hidden text-sm text-bad-ink flex items-center gap-1.5" role="alert">
+                  <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> <span id="cuenta-error-texto"></span>
+                </p>
+                <button type="submit" class="btn btn-primary w-full">
+                  <i data-lucide="user-plus" class="w-4 h-4"></i> Crear cuenta
+                </button>
+              </form>
+            </div>
+
+            <div class="lg:col-span-2 panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg">Cuentas con acceso</h3>
+              <ul id="lista-cuentas-ui" class="space-y-2"></ul>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALES -->
+  <div id="modal-pc" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="modal-pc-titulo">
+    <div class="panel w-full max-w-md p-6 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+      <button onclick="cerrarModalPC()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h3 id="modal-pc-titulo" class="font-display font-semibold text-xl pr-10">Registrar equipo</h3>
+
+      <form id="form-pc" class="space-y-4">
+        <input type="hidden" id="pc-edit-id">
+
+        <div>
+          <label class="lbl" for="pc-nombre">Nombre del equipo</label>
+          <input type="text" id="pc-nombre" required placeholder="Ej. PC-LAB-01" class="input w-full">
+        </div>
+
+        <div>
+          <label class="lbl" for="pc-marca">Marca y modelo</label>
+          <input type="text" id="pc-marca" required placeholder="Ej. Dell OptiPlex 7080" class="input w-full">
+        </div>
+
+        <div>
+          <label class="lbl" for="pc-so">Sistema operativo</label>
+          <select id="pc-so" class="input w-full">
+            <option value="Windows 11">Windows 11</option>
+            <option value="Windows 10">Windows 10</option>
+            <option value="Linux Mint">Linux Mint</option>
+            <option value="Ubuntu">Ubuntu</option>
+            <option value="Debian">Debian</option>
+            <option value="macOS">macOS</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="lbl" for="pc-mac">Dirección MAC</label>
+            <input type="text" id="pc-mac" required placeholder="00:1A:2B:3C:4D:5E" class="input w-full font-mono">
+          </div>
+          <div>
+            <label class="lbl" for="pc-internet">¿Tiene conexión a internet?</label>
+            <select id="pc-internet" onchange="alternarCampoIP()" class="input w-full">
+              <option value="si">Sí</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="pc-ip-container">
+          <label class="lbl" for="pc-ip">Dirección IP (opcional)</label>
+          <input type="text" id="pc-ip" oninput="validarIpDuplicadaInput()" placeholder="192.168.1.50" class="input w-full font-mono">
+          <p id="alerta-ip-duplicada" class="hidden text-sm text-warn-ink bg-warn-soft rounded-lg px-3 py-2 mt-2 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Esta IP ya está asignada a otra computadora.
+          </p>
+        </div>
+
+        <div>
+          <label class="lbl" for="pc-estado">Estado de operación</label>
+          <select id="pc-estado" class="input w-full">
+            <option value="funcional">Funcional</option>
+            <option value="atencion">Requiere atención o tiene una falla</option>
+          </select>
+        </div>
+
+        <div id="campo-problema-container" class="hidden">
+          <label class="lbl" for="pc-problema">Descripción del problema</label>
+          <input type="text" id="pc-problema" placeholder="Ej. Falla en la fuente de poder" class="input w-full">
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="cerrarModalPC()" class="btn btn-outline flex-1">Cancelar</button>
+          <button type="submit" class="btn btn-primary flex-1">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-catalogo-software" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="titulo-catalogo">
+    <div class="panel w-full max-w-md p-6 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+      <button onclick="cerrarModalCatalogoSoftware()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="pr-10">
+        <h3 id="titulo-catalogo" class="font-display font-semibold text-xl">Catálogo de programas</h3>
+        <p class="text-sm text-muted mt-1">Los programas que aquí agregues se podrán marcar como instalados en cada computadora.</p>
+      </div>
+
+      <form id="form-nuevo-programa-catalogo" class="flex gap-2">
+        <input type="text" id="nombre-programa-catalogo" required placeholder="Ej. Word, Xojo, VS Code, Python" class="input flex-1 min-w-0">
+        <button type="submit" class="btn btn-primary">Agregar</button>
+      </form>
+
+      <div class="overflow-y-auto max-h-60">
+        <ul id="lista-catalogo-software-ui" class="space-y-1.5"></ul>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="cerrarModalCatalogoSoftware()" class="btn btn-outline">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-software-pc" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="software-modal-titulo">
+    <div class="panel w-full max-w-xl p-6 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+      <button onclick="cerrarModalSoftwarePC()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="pr-10">
+        <h3 id="software-modal-titulo" class="font-display font-semibold text-xl">Programas del equipo</h3>
+        <p class="text-sm text-muted mt-1">Toca un programa para cambiar su estado: funcional, con fallo o no instalado.</p>
+      </div>
+
+      <div id="grid-software-pc" class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-80 p-0.5"></div>
+
+      <div class="flex justify-end pt-4 border-t border-line">
+        <button onclick="cerrarModalSoftwarePC()" class="btn btn-primary">Guardar y cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script>
+    window.SUPABASE_URL = 'https://dnzhjanlarmjgyrdhyqi.supabase.co';
+    window.SUPABASE_ANON_KEY = 'sb_publishable_bVNRdEx1KM0gi0NjL2nSwA_KY87JAF8';
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
