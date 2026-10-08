@@ -20,6 +20,7 @@ let listaPCs = [];               // computadoras + su software y bitácora
 let catalogoProgramas = [];      // [{ id, nombre }]
 let pendientes = [];             // [{ id, texto }]
 let listaCuentas = [];           // perfiles (para la ventana de Cuentas)
+
 let pcSeleccionadaId = null;
 let filtroEstadoActual = 'todos';
 let filtroSO = 'todos';
@@ -302,13 +303,13 @@ function iniciarReloj() {
 // ============================================================
 
 async function cargarCatalogo() {
-  const { data, error } = await sb.from('catalogo_programas').select('id,nombre').order('nombre');
+  const { data, error } = await sb.from('catalogo_programas').select('id,nombre,agregado_por').order('nombre');
   mostrarAvisoSinConexion(!!error);
   catalogoProgramas = data || [];
 }
 
 async function cargarPendientes() {
-  const { data, error } = await sb.from('pendientes').select('id,texto').order('creado_en');
+  const { data, error } = await sb.from('pendientes').select('id,texto,creado_por').order('creado_en');
   mostrarAvisoSinConexion(!!error);
   pendientes = data || [];
 }
@@ -435,9 +436,9 @@ formPC.addEventListener('submit', async (e) => {
   boton.disabled = true;
   let error;
   if (editId !== '') {
-    ({ error } = await sb.from('computadoras').update(datosPC).eq('id', Number(editId)));
+    ({ error } = await sb.from('computadoras').update({ ...datosPC, modificado_por: sesion.nombre }).eq('id', Number(editId)));
   } else {
-    ({ error } = await sb.from('computadoras').insert(datosPC));
+    ({ error } = await sb.from('computadoras').insert({ ...datosPC, creado_por: sesion.nombre, modificado_por: sesion.nombre }));
   }
   boton.disabled = false;
 
@@ -625,7 +626,12 @@ function crearFilaPC(pc) {
     </td>
     <td class="px-4 py-3 whitespace-nowrap">${insigniaEstadoHTML(pc)}</td>
     <td class="px-4 py-3 whitespace-nowrap">${botonSoftwareHTML(pc)}</td>
-    <td class="px-4 py-3 text-right whitespace-nowrap">${botonesAccionHTML(pc)}</td>
+    <td class="px-4 py-3 text-right whitespace-nowrap">
+      <div class="flex flex-col items-end gap-1">
+        ${botonesAccionHTML(pc)}
+        ${pc.modificado_por ? `<span class="text-xs text-muted">Por ${esc(pc.modificado_por)}</span>` : ''}
+      </div>
+    </td>
   `;
   return tr;
 }
@@ -653,6 +659,7 @@ function crearTarjetaPC(pc) {
       ${botonSoftwareHTML(pc)}
       ${botonesAccionHTML(pc)}
     </div>
+    ${pc.modificado_por ? `<p class="text-xs text-muted text-right">Última modificación: ${esc(pc.modificado_por)}</p>` : ''}
   `;
   return div;
 }
@@ -839,7 +846,10 @@ function renderizarListaCatalogo() {
     const li = document.createElement('li');
     li.className = "flex items-center justify-between gap-2 rounded-lg bg-sunken pl-3 pr-1 py-1 text-sm";
     li.innerHTML = `
-      <span class="truncate">${esc(prog.nombre)}</span>
+      <span class="truncate">
+        ${esc(prog.nombre)}
+        ${prog.agregado_por ? `<span class="block text-xs text-muted">Agregado por ${esc(prog.agregado_por)}</span>` : ''}
+      </span>
       ${puedeBorrar() ? `
       <button onclick="eliminarProgramaCatalogo(${prog.id})" aria-label="Eliminar ${esc(prog.nombre)}" class="btn btn-ghost btn-square btn-danger">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -859,7 +869,7 @@ document.getElementById('form-nuevo-programa-catalogo').addEventListener('submit
   const nombre = input.value.trim();
   if (!nombre || catalogoProgramas.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) return;
 
-  const { error } = await sb.from('catalogo_programas').insert({ nombre });
+  const { error } = await sb.from('catalogo_programas').insert({ nombre, agregado_por: sesion.nombre });
   if (error) { alert('No se pudo agregar el programa: ' + error.message); return; }
 
   input.value = '';
@@ -939,7 +949,7 @@ formPendiente.addEventListener('submit', async (e) => {
   const texto = input.value.trim();
   if (!texto) return;
 
-  const { error } = await sb.from('pendientes').insert({ texto });
+  const { error } = await sb.from('pendientes').insert({ texto, creado_por: sesion.nombre });
   if (error) { alert('No se pudo guardar: ' + error.message); return; }
 
   input.value = '';
@@ -971,7 +981,10 @@ function renderizarPendientes() {
         class="mt-0.5 w-5 h-5 shrink-0 rounded-full border-2 border-subtle text-ok-ink flex items-center justify-center hover:border-ok hover:bg-ok-soft transition-colors">
         <i data-lucide="check" class="w-3 h-3 opacity-0 group-hover:opacity-100"></i>
       </button>
-      <span class="text-sm min-w-0 break-words">${esc(p.texto)}</span>
+      <span class="text-sm min-w-0 break-words">
+        ${esc(p.texto)}
+        ${p.creado_por ? `<span class="block text-xs text-muted mt-0.5">Agregado por ${esc(p.creado_por)}</span>` : ''}
+      </span>
     `;
     listaPendientesUI.appendChild(li);
   });
@@ -1102,11 +1115,3 @@ document.addEventListener('keydown', (e) => {
 });
 
 iniciarApp();
-// Registro del Service Worker para soporte PWA (Instalable)
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then((reg) => console.log('Service Worker registrado con éxito:', reg.scope))
-      .catch((err) => console.error('Error al registrar Service Worker:', err));
-  });
-}
