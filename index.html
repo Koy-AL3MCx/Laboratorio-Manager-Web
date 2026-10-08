@@ -6,14 +6,6 @@
   <meta name="color-scheme" content="light dark">
   <title>LabControl - Inventario del laboratorio</title>
 
-  <!-- PWA & Mobile Web App Capabilities -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#7c3aed">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="LabControl">
-
   <!-- Aplica el tema guardado antes de pintar, para evitar un parpadeo -->
   <script>
     try {
@@ -28,6 +20,7 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Los colores de Tailwind apuntan a las variables de abajo (claro / oscuro)
     window.tailwind = window.tailwind || {};
     tailwind.config = {
       theme: {
@@ -64,6 +57,7 @@
   </script>
 
   <style>
+    /* ---------- COLORES (tema claro por defecto) ---------- */
     :root {
       color-scheme: light;
       --page: 247 246 252;
@@ -91,6 +85,7 @@
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
+    /* ---------- TEMA OSCURO: automático según el dispositivo ---------- */
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
         color-scheme: dark;
@@ -118,6 +113,7 @@
       :root:not([data-theme="light"]) .ic-luna { display: none; }
     }
 
+    /* ---------- TEMA OSCURO: elegido con el botón ---------- */
     :root[data-theme="dark"] {
       color-scheme: dark;
       --page: 15 11 26;
@@ -143,6 +139,7 @@
     :root[data-theme="dark"] .ic-sol { display: inline-flex; }
     :root[data-theme="dark"] .ic-luna { display: none; }
 
+    /* ---------- BASE ---------- */
     html { background: rgb(var(--page)); scroll-padding-top: env(safe-area-inset-top, 0px); }
     body { background: rgb(var(--page)); color: rgb(var(--ink)); -webkit-font-smoothing: antialiased; }
     :focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; }
@@ -154,6 +151,7 @@
 
     .scrim { background: rgb(var(--scrim) / .55); }
 
+    /* ---------- COMPONENTES ---------- */
     .panel { background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: 16px; box-shadow: 0 1px 2px rgb(var(--ink) / .04); }
 
     .lbl { display: block; font-size: .8125rem; font-weight: 600; margin-bottom: .375rem; color: rgb(var(--ink)); }
@@ -204,7 +202,7 @@
     .nav-item.is-active { background: rgb(var(--brand-soft)); color: rgb(var(--brand-ink)); font-weight: 600; }
 
     .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgb(var(--sunken)); border: 1px solid rgb(var(--line)); max-width: 100%; overflow-x: auto; }
-    .seg-btn { white-space: nowrap; padding: .4rem .8rem; border-radius: 999px; font-size: .8125rem; font-weight: 500; color: rgb(var(--muted)); transition: color .15s, background-color .15s; }
+    .seg-btn { white-space: nowrap; padding: .4rem .8rem; border-radius: 9px; font-size: .8125rem; font-weight: 500; color: rgb(var(--muted)); transition: color .15s, background-color .15s; }
     .seg-btn:hover { color: rgb(var(--ink)); }
     .seg-btn.is-active { background: rgb(var(--surface)); color: rgb(var(--brand-ink)); font-weight: 600; box-shadow: 0 1px 2px rgb(var(--ink) / .1); }
 
@@ -219,6 +217,7 @@
 
     .tabular { font-variant-numeric: tabular-nums; }
 
+    /* En iPhone, los campos con letra menor a 16px hacen zoom automático al tocarlos */
     @media (max-width: 640px) {
       input, select, textarea { font-size: 16px !important; }
     }
@@ -233,6 +232,7 @@
   <div id="pantalla-login" class="fixed inset-0 z-[60] bg-page overflow-y-auto">
     <div class="min-h-full grid lg:grid-cols-2">
 
+      <!-- Panel de marca (solo en pantallas grandes) -->
       <div class="hidden lg:flex flex-col justify-between p-12 text-white" style="background: rgb(var(--hero));">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
@@ -247,6 +247,7 @@
         <p class="text-sm text-white/60">Acceso para encargados y prestadores de servicio.</p>
       </div>
 
+      <!-- Formulario -->
       <div class="relative flex items-center justify-center p-6">
         <button type="button" onclick="alternarTema()" class="btn btn-outline btn-square absolute top-4 right-4" aria-label="Cambiar entre modo claro y oscuro" title="Cambiar tema">
           <span class="ic-luna"><i data-lucide="moon" class="w-4 h-4"></i></span>
@@ -311,9 +312,10 @@
     </div>
   </div>
 
+  <!-- Fondo del menú en celular -->
   <div id="overlay-menu" onclick="cerrarMenu()" class="scrim fixed inset-0 z-30 hidden lg:hidden"></div>
 
-  <!-- ============ MENÚ LATERAL ============ -->
+  <!-- ============ MENÚ LATERAL (en celular se desliza desde la izquierda) ============ -->
   <aside id="sidebar"
     class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full lg:translate-x-0 lg:static transition-transform duration-200 bg-surface border-r border-line px-4 flex flex-col justify-between shrink-0"
     style="padding-top: calc(1.25rem + env(safe-area-inset-top, 0px)); padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));">
@@ -479,13 +481,13 @@
               </div>
 
               <div class="grid grid-cols-2 gap-3 sm:contents">
-                <select id="filtro-so" onchange="cambiarFiltroSO(this.value)" aria-label="Filtrar por sistema operativo" class="input w-full sm:w-auto"></select>
-                <select id="filtro-programa" onchange="cambiarFiltroPrograma(this.value)" aria-label="Filtrar por programa" class="input w-full sm:w-auto"></select>
-                <select id="filtro-programa-estado" onchange="cambiarFiltroProgramaEstado(this.value)" aria-label="Estado del programa" class="input hidden w-full sm:w-auto">
-                  <option value="no_instalado">Falta instalar</option>
-                  <option value="funcional">Instalado y funcional</option>
-                  <option value="no_funcional">Instalado con fallo</option>
-                </select>
+              <select id="filtro-so" onchange="cambiarFiltroSO(this.value)" aria-label="Filtrar por sistema operativo" class="input w-full sm:w-auto"></select>
+              <select id="filtro-programa" onchange="cambiarFiltroPrograma(this.value)" aria-label="Filtrar por programa" class="input w-full sm:w-auto"></select>
+              <select id="filtro-programa-estado" onchange="cambiarFiltroProgramaEstado(this.value)" aria-label="Estado del programa" class="input hidden w-full sm:w-auto">
+                <option value="no_instalado">Falta instalar</option>
+                <option value="funcional">Instalado y funcional</option>
+                <option value="no_funcional">Instalado con fallo</option>
+              </select>
               </div>
 
               <button onclick="limpiarFiltros()" class="btn btn-ghost btn-sm self-start sm:self-center">Limpiar filtros</button>
@@ -494,6 +496,7 @@
             <p id="contador-pcs" class="text-sm text-muted"></p>
           </div>
 
+          <!-- Tabla (pantallas anchas) -->
           <div class="hidden xl:block panel overflow-hidden">
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm">
@@ -512,6 +515,7 @@
             </div>
           </div>
 
+          <!-- Tarjetas (celular y tablet) -->
           <div id="lista-pcs-cards" class="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3"></div>
         </section>
 
@@ -566,7 +570,7 @@
           </div>
         </section>
 
-        <!-- VENTANA 4: CUENTAS -->
+        <!-- VENTANA 4: CUENTAS (solo administrador) -->
         <section id="ventana-cuentas" class="hidden">
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
@@ -615,7 +619,7 @@
     </main>
   </div>
 
-  <!-- MODALES -->
+  <!-- ============ MODAL 1: REGISTRAR / EDITAR PC ============ -->
   <div id="modal-pc" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="modal-pc-titulo">
     <div class="panel w-full max-w-md p-6 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="cerrarModalPC()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
@@ -693,6 +697,7 @@
     </div>
   </div>
 
+  <!-- ============ MODAL 2: CATÁLOGO DE PROGRAMAS ============ -->
   <div id="modal-catalogo-software" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="titulo-catalogo">
     <div class="panel w-full max-w-md p-6 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="cerrarModalCatalogoSoftware()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
@@ -719,6 +724,7 @@
     </div>
   </div>
 
+  <!-- ============ MODAL 3: PROGRAMAS DE UNA PC ============ -->
   <div id="modal-software-pc" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="software-modal-titulo">
     <div class="panel w-full max-w-xl p-6 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="cerrarModalSoftwarePC()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
@@ -740,6 +746,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
+    // Datos de conexión de tu proyecto de Supabase.
+    // La "anon key" está pensada para ir en el navegador: por sí sola no permite
+    // saltarse la seguridad (Row Level Security) configurada en la base de datos.
     window.SUPABASE_URL = 'https://dnzhjanlarmjgyrdhyqi.supabase.co';
     window.SUPABASE_ANON_KEY = 'sb_publishable_bVNRdEx1KM0gi0NjL2nSwA_KY87JAF8';
   </script>
