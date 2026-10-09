@@ -185,6 +185,7 @@ async function iniciarApp() {
 }
 
 async function prepararPantallaLogin() {
+  document.getElementById('pantalla-login').classList.remove('hidden');
   document.getElementById('login-cargando').classList.remove('hidden');
   const { data, error } = await sb.rpc('hay_cuentas');
   document.getElementById('login-cargando').classList.add('hidden');
