@@ -85,6 +85,11 @@ function refrescarIconos() {
 
 // ÍCONOS (Lucide, lucide.dev, licencia ISC) incrustados para no depender de internet
 const ICONOS = {
+  'settings': "<path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>",
+  'rotate-ccw': "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path>",
+  'map-pin': "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"></path><circle cx=\"12\" cy=\"10\" r=\"3\"></circle>",
+  'keyboard': "<path d=\"M10 8h.01\"></path><path d=\"M12 12h.01\"></path><path d=\"M14 8h.01\"></path><path d=\"M16 12h.01\"></path><path d=\"M18 8h.01\"></path><path d=\"M6 8h.01\"></path><path d=\"M7 16h10\"></path><path d=\"M8 12h.01\"></path><rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"></rect>",
+  'info': "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 16v-4\"></path><path d=\"M12 8h.01\"></path>",
   'alert-circle': "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"></line><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"></line>",
   'alert-triangle': "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"></path><path d=\"M12 9v4\"></path><path d=\"M12 17h.01\"></path>",
   'box': "<path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"></path><path d=\"m3.3 7 8.7 5 8.7-5\"></path><path d=\"M12 22V12\"></path>",
@@ -109,6 +114,8 @@ const ICONOS = {
   'users': "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"></path><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"></path>",
   'user-plus': "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"></line><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"></line>",
   'loader': "<path d=\"M21 12a9 9 0 1 1-6.219-8.56\"></path>",
+  'eye': "<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>",
+  'eye-off': "<path d=\"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49\"></path><path d=\"M14.084 14.158a3 3 0 0 1-4.242-4.242\"></path><path d=\"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143\"></path><path d=\"m2 2 20 20\"></path>",
   'wifi-off': "<path d=\"M12 20h.01\"></path><path d=\"M8.5 16.429a5 5 0 0 1 7 0\"></path><path d=\"M5 12.859a10 10 0 0 1 5.17-2.69\"></path><path d=\"M19 12.859a10 10 0 0 0-2.007-1.523\"></path><path d=\"M2 8.82a15 15 0 0 1 4.177-2.643\"></path><path d=\"M22 8.82a15 15 0 0 0-11.288-3.764\"></path><path d=\"m2 2 20 20\"></path>"
 };
 
@@ -126,6 +133,39 @@ function alternarTema() {
   const nuevo = temaEfectivo() === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', nuevo);
   try { localStorage.setItem('lab_tema', nuevo); } catch (e) {}
+  actualizarBotonesTema();
+}
+
+// 'light' | 'dark' | 'sistema' (sigue el modo del dispositivo)
+function elegirTema(opcion) {
+  if (opcion === 'sistema') {
+    document.documentElement.removeAttribute('data-theme');
+    try { localStorage.removeItem('lab_tema'); } catch (e) {}
+  } else {
+    document.documentElement.setAttribute('data-theme', opcion);
+    try { localStorage.setItem('lab_tema', opcion); } catch (e) {}
+  }
+  actualizarBotonesTema();
+}
+
+function actualizarBotonesTema() {
+  const guardado = (() => { try { return localStorage.getItem('lab_tema'); } catch (e) { return null; } })();
+  const actual = guardado === 'dark' || guardado === 'light' ? guardado : 'sistema';
+  ['light', 'dark', 'sistema'].forEach(t => {
+    const btn = document.getElementById(`config-tema-${t}`);
+    if (btn) btn.classList.toggle('is-active', t === actual);
+  });
+}
+
+// Muestra u oculta el texto de un campo de contraseña
+function alternarVerClave(idCampo, boton) {
+  const campo = document.getElementById(idCampo);
+  const mostrando = campo.type === 'text';
+  campo.type = mostrando ? 'password' : 'text';
+  boton.setAttribute('aria-pressed', String(!mostrando));
+  boton.setAttribute('aria-label', mostrando ? 'Mostrar contraseña' : 'Ocultar contraseña');
+  boton.innerHTML = `<i data-lucide="${mostrando ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>`;
+  refrescarIconos();
 }
 
 // ============================================================
@@ -181,10 +221,12 @@ async function cargarPerfilYEntrar(user) {
   document.getElementById('pantalla-login').classList.add('hidden');
 
   cambiarVentana('dashboard');
+  await cargarConfiguracionLab();
   await cargarTodo();
 }
 
 async function cerrarSesion() {
+  if (!confirm('¿Quieres cerrar tu sesión?')) return;
   await sb.auth.signOut();
   sesion = null;
 
@@ -250,11 +292,14 @@ document.getElementById('form-alta-inicial').addEventListener('submit', async (e
 // 1. NAVEGACIÓN Y RELOJ
 // ============================================================
 
+let _ventanaActual = 'dashboard';
+
 const VENTANAS = {
   dashboard: { boton: 'btn-nav-dashboard', seccion: 'ventana-dashboard', titulo: 'Panel principal', subtitulo: 'Resumen del laboratorio' },
   pcs:       { boton: 'btn-nav-pcs',       seccion: 'ventana-pcs',       titulo: 'Equipos de cómputo', subtitulo: 'Computadoras, sistemas operativos y programas instalados' },
   bitacora:  { boton: 'btn-nav-bitacora',  seccion: 'ventana-bitacora',  titulo: 'Bitácora de mantenimiento', subtitulo: 'Trabajos preventivos, correctivos y actualizaciones' },
-  cuentas:   { boton: 'btn-nav-cuentas',   seccion: 'ventana-cuentas',   titulo: 'Cuentas', subtitulo: 'Da de alta o elimina accesos de encargados y prestadores' }
+  cuentas:   { boton: 'btn-nav-cuentas',   seccion: 'ventana-cuentas',   titulo: 'Cuentas', subtitulo: 'Da de alta o elimina accesos de encargados y prestadores' },
+  configuracion: { boton: 'btn-nav-configuracion', seccion: 'ventana-configuracion', titulo: 'Configuración', subtitulo: 'Ajustes de tu cuenta y del laboratorio' }
 };
 
 function cambiarVentana(ventana) {
@@ -268,12 +313,14 @@ function cambiarVentana(ventana) {
     if (activa) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   });
 
+  _ventanaActual = ventana;
   const v = VENTANAS[ventana];
   document.getElementById('titulo-ventana').textContent = v.titulo;
   document.getElementById('subtitulo-ventana').textContent = v.subtitulo;
 
   if (ventana === 'bitacora') prepararVentanaBitacora();
   if (ventana === 'cuentas') renderizarCuentas();
+  if (ventana === 'configuracion') prepararVentanaConfiguracion();
 
   cerrarMenu();
   refrescarIconos();
@@ -358,6 +405,7 @@ function abrirModalPC(id = null) {
     editIdInput.value = id;
     document.getElementById('pc-nombre').value = pc.nombre;
     document.getElementById('pc-marca').value = pc.marca;
+    document.getElementById('pc-ubicacion').value = pc.ubicacion || '';
     document.getElementById('pc-so').value = pc.so || 'Windows 11';
     document.getElementById('pc-mac').value = pc.mac;
     document.getElementById('pc-internet').value = pc.internet ? 'si' : 'no';
@@ -424,6 +472,7 @@ formPC.addEventListener('submit', async (e) => {
   const datosPC = {
     nombre: document.getElementById('pc-nombre').value.trim(),
     marca: document.getElementById('pc-marca').value.trim(),
+    ubicacion: document.getElementById('pc-ubicacion').value.trim(),
     so: document.getElementById('pc-so').value,
     mac: document.getElementById('pc-mac').value.trim(),
     internet: tieneInternet,
@@ -618,6 +667,7 @@ function crearFilaPC(pc) {
     <td class="px-4 py-3 whitespace-nowrap">
       <p class="font-semibold">${esc(pc.nombre)}</p>
       <p class="text-xs text-muted">${esc(pc.marca)}</p>
+      ${pc.ubicacion ? `<p class="text-xs text-muted flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${esc(pc.ubicacion)}</p>` : ''}
     </td>
     <td class="px-4 py-3 whitespace-nowrap"><span class="badge badge-neutral">${esc(pc.so || 'Windows 11')}</span></td>
     <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">
@@ -646,6 +696,7 @@ function crearTarjetaPC(pc) {
       <div class="min-w-0">
         <p class="font-semibold truncate">${esc(pc.nombre)}</p>
         <p class="text-sm text-muted truncate">${esc(pc.marca)}</p>
+        ${pc.ubicacion ? `<p class="text-xs text-muted flex items-center gap-1 mt-0.5"><i data-lucide="map-pin" class="w-3 h-3"></i>${esc(pc.ubicacion)}</p>` : ''}
       </div>
       <div class="shrink-0">${insigniaEstadoHTML(pc)}</div>
     </div>
@@ -957,10 +1008,48 @@ formPendiente.addEventListener('submit', async (e) => {
   renderizarPendientes();
 });
 
-async function eliminarPendiente(id) {
-  const { error } = await sb.from('pendientes').delete().eq('id', id);
-  if (error) { alert('No se pudo eliminar: ' + error.message); return; }
-  await cargarPendientes();
+let _pendienteABorrar = null; // { pendiente, temporizador }
+
+function eliminarPendiente(id) {
+  const pendiente = pendientes.find(p => p.id === id);
+  if (!pendiente) return;
+
+  // Se quita de la vista al instante (no se borra todavía de la base de datos)
+  pendientes = pendientes.filter(p => p.id !== id);
+  renderizarPendientes();
+
+  if (_pendienteABorrar) clearTimeout(_pendienteABorrar.temporizador);
+  _pendienteABorrar = {
+    pendiente,
+    temporizador: setTimeout(async () => {
+      await sb.from('pendientes').delete().eq('id', id);
+      _pendienteABorrar = null;
+      ocultarToastDeshacer();
+    }, 5000)
+  };
+
+  mostrarToastDeshacer('Pendiente eliminado');
+}
+
+function mostrarToastDeshacer(texto) {
+  document.getElementById('toast-deshacer-texto').textContent = texto;
+  document.getElementById('toast-deshacer').classList.remove('hidden');
+  document.getElementById('toast-deshacer').classList.add('flex');
+  refrescarIconos();
+}
+
+function ocultarToastDeshacer() {
+  document.getElementById('toast-deshacer').classList.add('hidden');
+  document.getElementById('toast-deshacer').classList.remove('flex');
+}
+
+function deshacerAccion() {
+  if (!_pendienteABorrar) return;
+  clearTimeout(_pendienteABorrar.temporizador);
+  pendientes.push(_pendienteABorrar.pendiente);
+  pendientes.sort((a, b) => a.id - b.id);
+  _pendienteABorrar = null;
+  ocultarToastDeshacer();
   renderizarPendientes();
 }
 
@@ -1013,6 +1102,47 @@ function renderizarAtencion() {
     listaAtencionUI.appendChild(li);
   });
 }
+
+// ============================================================
+// 9.5 CONFIGURACIÓN
+// ============================================================
+
+let nombreLaboratorio = 'LabControl';
+
+async function cargarConfiguracionLab() {
+  const { data } = await sb.from('configuracion_lab').select('valor').eq('clave', 'nombre_laboratorio').single();
+  nombreLaboratorio = data?.valor || 'LabControl';
+  document.getElementById('marca-nombre-lab').textContent = nombreLaboratorio;
+}
+
+function prepararVentanaConfiguracion() {
+  document.getElementById('config-sesion-inicial').textContent = sesion.nombre.charAt(0).toUpperCase();
+  document.getElementById('config-sesion-nombre').textContent = sesion.nombre;
+  document.getElementById('config-sesion-correo').textContent = sesion.correo;
+  actualizarBotonesTema();
+
+  const panelLab = document.getElementById('config-panel-laboratorio');
+  panelLab.classList.toggle('hidden', sesion.rol !== 'admin');
+  if (sesion.rol === 'admin') {
+    document.getElementById('config-nombre-lab').value = nombreLaboratorio;
+  }
+  refrescarIconos();
+}
+
+document.getElementById('form-config-laboratorio').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nuevoNombre = document.getElementById('config-nombre-lab').value.trim();
+  if (!nuevoNombre) return;
+
+  const { error } = await sb.from('configuracion_lab').update({ valor: nuevoNombre }).eq('clave', 'nombre_laboratorio');
+  if (error) { alert('No se pudo guardar: ' + error.message); return; }
+
+  nombreLaboratorio = nuevoNombre;
+  document.getElementById('marca-nombre-lab').textContent = nombreLaboratorio;
+  const aviso = document.getElementById('config-lab-guardado');
+  aviso.classList.remove('hidden');
+  setTimeout(() => aviso.classList.add('hidden'), 2500);
+});
 
 // ============================================================
 // 10. CUENTAS (dar de alta y eliminar) — solo administrador
@@ -1106,12 +1236,29 @@ async function eliminarCuenta(id) {
 // ============================================================
 
 document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
   const abierto = id => !document.getElementById(id).classList.contains('hidden');
-  if (abierto('modal-software-pc')) cerrarModalSoftwarePC();
-  else if (abierto('modal-pc')) cerrarModalPC();
-  else if (abierto('modal-catalogo-software')) cerrarModalCatalogoSoftware();
-  else cerrarMenu();
+
+  if (e.key === 'Escape') {
+    if (abierto('modal-software-pc')) cerrarModalSoftwarePC();
+    else if (abierto('modal-pc')) cerrarModalPC();
+    else if (abierto('modal-catalogo-software')) cerrarModalCatalogoSoftware();
+    else cerrarMenu();
+    return;
+  }
+
+  // Los atajos "/" y "N" no deben interferir mientras se escribe en un campo,
+  // ni mientras hay un modal abierto encima.
+  const escribiendo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software');
+  if (escribiendo || hayModalAbierto || !sesion) return;
+
+  if (e.key === '/' && _ventanaActual === 'pcs') {
+    e.preventDefault();
+    document.getElementById('input-busqueda').focus();
+  } else if ((e.key === 'n' || e.key === 'N') && _ventanaActual === 'pcs') {
+    e.preventDefault();
+    abrirModalPC();
+  }
 });
 
 iniciarApp();
