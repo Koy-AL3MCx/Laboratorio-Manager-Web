@@ -19,6 +19,7 @@ let sesion = null;              // { id, nombre, rol, correo }
 let listaPCs = [];               // computadoras + su software y bitácora
 let catalogoProgramas = [];      // [{ id, nombre }]
 let pendientes = [];             // [{ id, texto }]
+let notasRapidas = [];           // [{ id, texto, computadora_id, autor_id, autor_nombre }]
 let listaCuentas = [];           // perfiles (para la ventana de Cuentas)
 
 let pcSeleccionadaId = null;
@@ -85,6 +86,14 @@ function refrescarIconos() {
 
 // ÍCONOS (Lucide, lucide.dev, licencia ISC) incrustados para no depender de internet
 const ICONOS = {
+  'message-square': "<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>",
+  'clipboard-check': "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"></rect><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"></path><path d=\"m9 14 2 2 4-4\"></path>",
+  'arrow-right': "<path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path>",
+  'chevron-left': "<path d=\"m15 18-6-6 6-6\"></path>",
+  'thumbs-up': "<path d=\"M7 10v12\"></path><path d=\"M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z\"></path>",
+  'thumbs-down': "<path d=\"M17 14V2\"></path><path d=\"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z\"></path>",
+  'party-popper': "<path d=\"M5.8 11.3 2 22l10.7-3.79\"></path><path d=\"M4 3h.01\"></path><path d=\"M22 8h.01\"></path><path d=\"M15 2h.01\"></path><path d=\"M22 20h.01\"></path><path d=\"m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10\"></path><path d=\"m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17\"></path><path d=\"m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7\"></path><path d=\"M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z\"></path>",
+  'skip-forward': "<polygon points=\"5 4 15 12 5 20 5 4\"></polygon><line x1=\"19\" x2=\"19\" y1=\"5\" y2=\"19\"></line>",
   'settings': "<path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>",
   'rotate-ccw': "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path>",
   'map-pin': "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"></path><circle cx=\"12\" cy=\"10\" r=\"3\"></circle>",
@@ -385,10 +394,17 @@ async function cargarPCs() {
   });
 }
 
+async function cargarNotasRapidas() {
+  const { data, error } = await sb.from('notas_rapidas').select('*').order('creado_en', { ascending: false });
+  mostrarAvisoSinConexion(!!error);
+  notasRapidas = data || [];
+}
+
 async function cargarTodo() {
   await cargarCatalogo();
   await cargarPCs();
   await cargarPendientes();
+  await cargarNotasRapidas();
   actualizarTodo();
 }
 
@@ -407,6 +423,10 @@ function abrirModalPC(id = null) {
     document.getElementById('pc-nombre').value = pc.nombre;
     document.getElementById('pc-marca').value = pc.marca;
     document.getElementById('pc-ubicacion').value = pc.ubicacion || '';
+    document.getElementById('pc-ubicacion-original').value = pc.ubicacion || '';
+    document.getElementById('pc-motivo-movimiento').value = '';
+    document.getElementById('campo-motivo-movimiento').classList.add('hidden');
+    document.getElementById('btn-ver-movimientos').classList.remove('hidden');
     document.getElementById('pc-so').value = pc.so || 'Windows 11';
     document.getElementById('pc-mac').value = pc.mac;
     document.getElementById('pc-internet').value = pc.internet ? 'si' : 'no';
@@ -421,6 +441,9 @@ function abrirModalPC(id = null) {
     editIdInput.value = '';
     formPC.reset();
     alternarCampoIP();
+    document.getElementById('pc-ubicacion-original').value = '';
+    document.getElementById('campo-motivo-movimiento').classList.add('hidden');
+    document.getElementById('btn-ver-movimientos').classList.add('hidden');
     problemaContainer.classList.add('hidden');
     tituloModal.textContent = 'Registrar equipo';
   }
@@ -461,6 +484,13 @@ function validarIpDuplicadaInput() {
   alerta.classList.toggle('hidden', !existe);
 }
 
+function mostrarCampoMotivoMovimiento() {
+  const original = document.getElementById('pc-ubicacion-original').value;
+  const actual = document.getElementById('pc-ubicacion').value;
+  const esEdicion = document.getElementById('pc-edit-id').value !== '';
+  document.getElementById('campo-motivo-movimiento').classList.toggle('hidden', !esEdicion || actual.trim() === original.trim());
+}
+
 estadoSelect.addEventListener('change', () => {
   problemaContainer.classList.toggle('hidden', estadoSelect.value !== 'atencion');
 });
@@ -482,6 +512,9 @@ formPC.addEventListener('submit', async (e) => {
     problema: estadoSelect.value === 'atencion' ? document.getElementById('pc-problema').value.trim() : ''
   };
 
+  const ubicacionOriginal = document.getElementById('pc-ubicacion-original').value;
+  const motivoMovimiento = document.getElementById('pc-motivo-movimiento').value.trim();
+
   const boton = e.target.querySelector('button[type=submit]');
   boton.disabled = true;
   let error;
@@ -494,10 +527,67 @@ formPC.addEventListener('submit', async (e) => {
 
   if (error) { alert('No se pudo guardar el equipo: ' + error.message); return; }
 
+  // Si cambió la ubicación, se registra en el historial de movimientos
+  if (editId !== '' && datosPC.ubicacion.trim() !== ubicacionOriginal.trim()) {
+    await sb.from('movimientos').insert({
+      computadora_id: Number(editId),
+      ubicacion_anterior: ubicacionOriginal,
+      ubicacion_nueva: datosPC.ubicacion,
+      motivo: motivoMovimiento,
+      autor_id: sesion.id,
+      autor_nombre: sesion.nombre
+    });
+  }
+
   cerrarModalPC();
   await cargarPCs();
   actualizarTodo();
 });
+
+// ============================================================
+// HISTORIAL DE MOVIMIENTOS
+// ============================================================
+
+async function abrirModalMovimientos() {
+  const id = Number(document.getElementById('pc-edit-id').value);
+  if (!id) return;
+  const pc = listaPCs.find(p => p.id === id);
+
+  document.getElementById('movimientos-titulo').textContent = `Historial de ubicación — ${pc.nombre}`;
+  const lista = document.getElementById('lista-movimientos-ui');
+  lista.innerHTML = `<li class="text-sm text-muted py-4 text-center">Cargando...</li>`;
+  document.getElementById('modal-movimientos').classList.remove('hidden');
+  refrescarIconos();
+
+  const { data, error } = await sb.from('movimientos').select('*').eq('computadora_id', id).order('creado_en', { ascending: false });
+  mostrarAvisoSinConexion(!!error);
+  lista.innerHTML = '';
+
+  if (!data || data.length === 0) {
+    lista.innerHTML = `<li class="text-sm text-muted py-6 text-center">Esta computadora no tiene movimientos registrados.</li>`;
+    return;
+  }
+
+  data.forEach(mov => {
+    const li = document.createElement('li');
+    li.className = "rounded-xl border border-line p-3 space-y-1.5 text-sm";
+    li.innerHTML = `
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-muted">${esc(mov.ubicacion_anterior || 'Sin ubicación')}</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-subtle"></i>
+        <span class="font-medium">${esc(mov.ubicacion_nueva || 'Sin ubicación')}</span>
+      </div>
+      ${mov.motivo ? `<p class="text-muted">${esc(mov.motivo)}</p>` : ''}
+      <p class="text-xs text-muted">${esc(mov.autor_nombre)} · ${new Date(mov.creado_en).toLocaleDateString()}</p>
+    `;
+    lista.appendChild(li);
+  });
+  refrescarIconos();
+}
+
+function cerrarModalMovimientos() {
+  document.getElementById('modal-movimientos').classList.add('hidden');
+}
 
 async function eliminarPC(id) {
   if (!puedeBorrar()) return;
@@ -595,6 +685,8 @@ function actualizarTodo() {
   renderizarTablaPCs();
   renderizarPendientes();
   renderizarAtencion();
+  renderizarNotasRapidas();
+  poblarSelectEquipoNota();
   refrescarIconos();
 }
 
@@ -1105,6 +1197,189 @@ function renderizarAtencion() {
 }
 
 // ============================================================
+// MODO "INVENTARIO FÍSICO"
+// ============================================================
+
+let _invFisico = null; // { equipos, indice, resultados }
+
+function iniciarInventarioFisico() {
+  if (listaPCs.length === 0) { alert('No hay equipos registrados para contar.'); return; }
+
+  _invFisico = { equipos: [...listaPCs], indice: 0, resultados: {} };
+  document.getElementById('inv-fisico-paso').classList.remove('hidden');
+  document.getElementById('inv-fisico-resumen').classList.add('hidden');
+  document.getElementById('modal-inventario-fisico').classList.remove('hidden');
+  mostrarEquipoInventarioFisico();
+}
+
+function mostrarEquipoInventarioFisico() {
+  const { equipos, indice } = _invFisico;
+  const pc = equipos[indice];
+
+  document.getElementById('inv-fisico-progreso').textContent = `Equipo ${indice + 1} de ${equipos.length}`;
+  document.getElementById('inv-fisico-barra').style.width = `${(indice / equipos.length) * 100}%`;
+  document.getElementById('inv-fisico-nombre').textContent = pc.nombre;
+  document.getElementById('inv-fisico-detalle').textContent = `${pc.marca}${pc.ubicacion ? ' · ' + pc.ubicacion : ''}`;
+  refrescarIconos();
+}
+
+function responderInventarioFisico(encontrado) {
+  const pc = _invFisico.equipos[_invFisico.indice];
+  _invFisico.resultados[pc.id] = encontrado;
+  avanzarInventarioFisico();
+}
+
+function saltarInventarioFisico() {
+  avanzarInventarioFisico();
+}
+
+function avanzarInventarioFisico() {
+  _invFisico.indice++;
+  if (_invFisico.indice >= _invFisico.equipos.length) {
+    mostrarResumenInventarioFisico();
+  } else {
+    mostrarEquipoInventarioFisico();
+  }
+}
+
+function mostrarResumenInventarioFisico() {
+  document.getElementById('inv-fisico-paso').classList.add('hidden');
+  document.getElementById('inv-fisico-resumen').classList.remove('hidden');
+  document.getElementById('inv-fisico-barra').style.width = '100%';
+
+  const { resultados, equipos } = _invFisico;
+  const revisados = Object.keys(resultados).length;
+  const faltantes = equipos.filter(pc => resultados[pc.id] === false);
+
+  document.getElementById('inv-fisico-resumen-texto').textContent =
+    `Se revisaron ${revisados} de ${equipos.length} equipos. ${faltantes.length} no se encontraron.`;
+
+  const cont = document.getElementById('inv-fisico-faltantes-cont');
+  cont.classList.toggle('hidden', faltantes.length === 0);
+
+  if (faltantes.length > 0) {
+    document.getElementById('inv-fisico-faltantes-lista').innerHTML = faltantes
+      .map(pc => `<li class="rounded-lg bg-bad-soft text-bad-ink px-3 py-2">${esc(pc.nombre)} — ${esc(pc.marca)}</li>`)
+      .join('');
+  }
+  refrescarIconos();
+}
+
+async function guardarInventarioFisico() {
+  const { resultados } = _invFisico;
+  const fecha = new Date().toISOString().slice(0, 10);
+
+  const filas = Object.entries(resultados).map(([computadora_id, encontrado]) => ({
+    computadora_id: Number(computadora_id),
+    encontrado,
+    fecha,
+    autor_id: sesion.id,
+    autor_nombre: sesion.nombre
+  }));
+
+  if (filas.length > 0) {
+    const { error } = await sb.from('verificaciones_fisicas').insert(filas);
+    if (error) { alert('No se pudo guardar la verificación: ' + error.message); return; }
+  }
+
+  const marcarAtencion = document.getElementById('inv-fisico-marcar-atencion').checked;
+  if (marcarAtencion) {
+    const idsFaltantes = Object.entries(resultados).filter(([, enc]) => !enc).map(([id]) => Number(id));
+    for (const id of idsFaltantes) {
+      await sb.from('computadoras').update({
+        funcional: false,
+        problema: `No se encontró en la verificación física del ${fecha}.`,
+        modificado_por: sesion.nombre
+      }).eq('id', id);
+    }
+  }
+
+  cerrarInventarioFisico();
+  await cargarPCs();
+  actualizarTodo();
+}
+
+function cerrarInventarioFisico() {
+  document.getElementById('modal-inventario-fisico').classList.add('hidden');
+  _invFisico = null;
+}
+
+// ============================================================
+// COMENTARIOS RÁPIDOS (fuera de la bitácora formal)
+// ============================================================
+
+function poblarSelectEquipoNota() {
+  const sel = document.getElementById('nota-equipo-relacionado');
+  const valorPrevio = sel.value;
+  sel.innerHTML = `<option value="">Sin equipo relacionado</option>` +
+    listaPCs.map(pc => `<option value="${pc.id}">${esc(pc.nombre)}</option>`).join('');
+  if (listaPCs.some(pc => String(pc.id) === valorPrevio)) sel.value = valorPrevio;
+}
+
+document.getElementById('form-nota-rapida').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('nueva-nota');
+  const texto = input.value.trim();
+  if (!texto) return;
+
+  const equipoId = document.getElementById('nota-equipo-relacionado').value;
+
+  const { error } = await sb.from('notas_rapidas').insert({
+    texto,
+    computadora_id: equipoId ? Number(equipoId) : null,
+    autor_id: sesion.id,
+    autor_nombre: sesion.nombre
+  });
+  if (error) { alert('No se pudo guardar la nota: ' + error.message); return; }
+
+  input.value = '';
+  document.getElementById('nota-equipo-relacionado').value = '';
+  await cargarNotasRapidas();
+  renderizarNotasRapidas();
+});
+
+function renderizarNotasRapidas() {
+  const cont = document.getElementById('lista-notas-rapidas');
+  cont.innerHTML = '';
+
+  if (notasRapidas.length === 0) {
+    cont.innerHTML = `<li class="text-sm text-muted py-4 text-center">No hay notas. Escribe algo rápido arriba, como un cable suelto o un detalle menor.</li>`;
+    return;
+  }
+
+  notasRapidas.forEach(nota => {
+    const pc = nota.computadora_id ? listaPCs.find(p => p.id === nota.computadora_id) : null;
+    const puedeEliminarNota = sesion && (sesion.id === nota.autor_id || sesion.rol === 'admin');
+
+    const li = document.createElement('li');
+    li.className = "rounded-lg bg-sunken p-3 space-y-1.5 text-sm";
+    li.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <p class="min-w-0 break-words">${esc(nota.texto)}</p>
+        ${puedeEliminarNota ? `
+        <button onclick="eliminarNotaRapida(${nota.id})" title="Eliminar nota" aria-label="Eliminar nota" class="btn btn-ghost btn-square shrink-0 -mt-1 -mr-1">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>` : ''}
+      </div>
+      <div class="flex items-center gap-2 flex-wrap text-xs text-muted">
+        ${pc ? `<span class="badge badge-neutral">${esc(pc.nombre)}</span>` : ''}
+        <span>${esc(nota.autor_nombre)} · ${new Date(nota.creado_en).toLocaleDateString()}</span>
+      </div>
+    `;
+    cont.appendChild(li);
+  });
+  refrescarIconos();
+}
+
+async function eliminarNotaRapida(id) {
+  if (!confirm('¿Eliminar esta nota?')) return;
+  const { error } = await sb.from('notas_rapidas').delete().eq('id', id);
+  if (error) { alert('No se pudo eliminar: ' + error.message); return; }
+  await cargarNotasRapidas();
+  renderizarNotasRapidas();
+}
+
+// ============================================================
 // 9.5 CONFIGURACIÓN
 // ============================================================
 
@@ -1240,7 +1515,9 @@ document.addEventListener('keydown', (e) => {
   const abierto = id => !document.getElementById(id).classList.contains('hidden');
 
   if (e.key === 'Escape') {
-    if (abierto('modal-software-pc')) cerrarModalSoftwarePC();
+    if (abierto('modal-movimientos')) cerrarModalMovimientos();
+    else if (abierto('modal-inventario-fisico')) cerrarInventarioFisico();
+    else if (abierto('modal-software-pc')) cerrarModalSoftwarePC();
     else if (abierto('modal-pc')) cerrarModalPC();
     else if (abierto('modal-catalogo-software')) cerrarModalCatalogoSoftware();
     else cerrarMenu();
@@ -1250,7 +1527,7 @@ document.addEventListener('keydown', (e) => {
   // Los atajos "/" y "N" no deben interferir mientras se escribe en un campo,
   // ni mientras hay un modal abierto encima.
   const escribiendo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software');
+  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software') || abierto('modal-movimientos') || abierto('modal-inventario-fisico');
   if (escribiendo || hayModalAbierto || !sesion) return;
 
   if (e.key === '/' && _ventanaActual === 'pcs') {
