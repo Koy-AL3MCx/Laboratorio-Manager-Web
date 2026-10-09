@@ -281,7 +281,12 @@
             </div>
             <div>
               <label for="alta-inicial-clave" class="lbl">Contraseña</label>
-              <input type="password" id="alta-inicial-clave" required minlength="6" placeholder="Al menos 6 caracteres" autocomplete="new-password" class="input w-full">
+              <div class="relative">
+                <input type="password" id="alta-inicial-clave" required minlength="6" placeholder="Al menos 6 caracteres" autocomplete="new-password" class="input w-full pr-10">
+                <button type="button" onclick="alternarVerClave('alta-inicial-clave', this)" class="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-square" aria-label="Mostrar contraseña" aria-pressed="false">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
             </div>
             <p id="alta-inicial-error" class="hidden text-sm text-bad-ink flex items-center gap-1.5" role="alert">
               <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> <span id="alta-inicial-error-texto"></span>
@@ -296,7 +301,12 @@
             </div>
             <div>
               <label for="login-clave" class="lbl">Contraseña</label>
-              <input type="password" id="login-clave" required autocomplete="current-password" class="input w-full">
+              <div class="relative">
+                <input type="password" id="login-clave" required autocomplete="current-password" class="input w-full pr-10">
+                <button type="button" onclick="alternarVerClave('login-clave', this)" class="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-square" aria-label="Mostrar contraseña" aria-pressed="false">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
             </div>
             <p id="login-error" class="hidden text-sm text-bad-ink flex items-center gap-1.5" role="alert">
               <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> Usuario o contraseña incorrectos.
@@ -325,8 +335,8 @@
           <i data-lucide="terminal" class="w-5 h-5"></i>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="font-display font-bold text-lg leading-none">LabControl</p>
-          <p class="text-xs text-muted mt-1">ProgLab v4.0</p>
+          <p id="marca-nombre-lab" class="font-display font-bold text-lg leading-none">LabControl</p>
+          <p class="text-xs text-muted mt-1">Inventario de equipo</p>
         </div>
         <button onclick="cerrarMenu()" class="lg:hidden btn btn-ghost btn-square" aria-label="Cerrar menú">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -345,6 +355,9 @@
         </button>
         <button id="btn-nav-cuentas" onclick="cambiarVentana('cuentas')" class="nav-item hidden">
           <i data-lucide="users" class="w-[18px] h-[18px]"></i> Cuentas
+        </button>
+        <button id="btn-nav-configuracion" onclick="cambiarVentana('configuracion')" class="nav-item">
+          <i data-lucide="settings" class="w-[18px] h-[18px]"></i> Configuración
         </button>
       </nav>
     </div>
@@ -589,7 +602,12 @@
                 </div>
                 <div>
                   <label class="lbl" for="cuenta-clave">Contraseña</label>
-                  <input type="password" id="cuenta-clave" required minlength="6" placeholder="Al menos 6 caracteres" class="input w-full">
+                  <div class="relative">
+                    <input type="password" id="cuenta-clave" required minlength="6" placeholder="Al menos 6 caracteres" class="input w-full pr-10">
+                    <button type="button" onclick="alternarVerClave('cuenta-clave', this)" class="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-square" aria-label="Mostrar contraseña" aria-pressed="false">
+                      <i data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label class="lbl" for="cuenta-rol">Rol</label>
@@ -615,8 +633,73 @@
           </div>
         </section>
 
+        <!-- VENTANA 5: CONFIGURACIÓN -->
+        <section id="ventana-configuracion" class="hidden">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+            <div class="panel p-5 sm:p-6 space-y-5">
+              <h3 class="font-display font-semibold text-lg">Tu cuenta</h3>
+
+              <div class="flex items-center gap-3">
+                <div id="config-sesion-inicial" class="w-11 h-11 shrink-0 rounded-full bg-brand-soft text-brand-ink font-semibold flex items-center justify-center">?</div>
+                <div class="min-w-0">
+                  <p id="config-sesion-nombre" class="font-semibold truncate">-</p>
+                  <p id="config-sesion-correo" class="text-sm text-muted truncate">-</p>
+                </div>
+              </div>
+
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-line">
+                <div>
+                  <p class="text-sm font-medium">Apariencia</p>
+                  <p class="text-xs text-muted">Elige cómo se ve la página en este dispositivo.</p>
+                </div>
+                <div class="seg shrink-0">
+                  <button onclick="elegirTema('light')" id="config-tema-light" class="seg-btn">Claro</button>
+                  <button onclick="elegirTema('dark')" id="config-tema-dark" class="seg-btn">Oscuro</button>
+                  <button onclick="elegirTema('sistema')" id="config-tema-sistema" class="seg-btn">Auto</button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-4 border-t border-line gap-3">
+                <div>
+                  <p class="text-sm font-medium">Atajos de teclado</p>
+                  <p class="text-xs text-muted">Presiona <kbd class="px-1.5 py-0.5 rounded bg-sunken border border-line text-xs">/</kbd> para buscar un equipo, o <kbd class="px-1.5 py-0.5 rounded bg-sunken border border-line text-xs">N</kbd> para agregar uno nuevo.</p>
+                </div>
+                <i data-lucide="keyboard" class="w-5 h-5 text-muted shrink-0"></i>
+              </div>
+
+              <button onclick="cerrarSesion()" class="btn btn-outline w-full">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar sesión
+              </button>
+            </div>
+
+            <div id="config-panel-laboratorio" class="panel p-5 sm:p-6 space-y-4 hidden">
+              <h3 class="font-display font-semibold text-lg">Laboratorio</h3>
+              <p class="text-sm text-muted">Solo el administrador puede cambiar esto. Se ve en el menú lateral de todos.</p>
+
+              <form id="form-config-laboratorio" class="space-y-3">
+                <div>
+                  <label class="lbl" for="config-nombre-lab">Nombre del laboratorio</label>
+                  <input type="text" id="config-nombre-lab" required maxlength="60" class="input w-full">
+                </div>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <span id="config-lab-guardado" class="hidden text-sm text-ok-ink ml-2">Guardado ✓</span>
+              </form>
+            </div>
+
+          </div>
+        </section>
+
       </div>
     </main>
+  </div>
+
+  <!-- AVISO FLOTANTE DE "DESHACER" -->
+  <div id="toast-deshacer" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] bg-ink text-page px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm">
+    <span id="toast-deshacer-texto">Elemento eliminado</span>
+    <button onclick="deshacerAccion()" class="font-semibold underline underline-offset-2 flex items-center gap-1">
+      <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Deshacer
+    </button>
   </div>
 
   <!-- ============ MODAL 1: REGISTRAR / EDITAR PC ============ -->
@@ -639,6 +722,11 @@
         <div>
           <label class="lbl" for="pc-marca">Marca y modelo</label>
           <input type="text" id="pc-marca" required placeholder="Ej. Dell OptiPlex 7080" class="input w-full">
+        </div>
+
+        <div>
+          <label class="lbl" for="pc-ubicacion">Ubicación (fila / mesa)</label>
+          <input type="text" id="pc-ubicacion" placeholder="Ej. Fila 2, Mesa 5 (opcional)" class="input w-full">
         </div>
 
         <div>
