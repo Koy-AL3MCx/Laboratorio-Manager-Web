@@ -79,6 +79,7 @@ function refrescarIconos() {
     svg.setAttribute('stroke-linejoin', 'round');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('class', el.getAttribute('class') || '');
+    if (el.id) svg.id = el.id;
     svg.innerHTML = interno;
     el.replaceWith(svg);
   });
@@ -86,6 +87,14 @@ function refrescarIconos() {
 
 // ÍCONOS (Lucide, lucide.dev, licencia ISC) incrustados para no depender de internet
 const ICONOS = {
+  'play': "<polygon points=\"6 3 20 12 6 21 6 3\"></polygon>",
+  'square': "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect>",
+  'timer': "<line x1=\"10\" x2=\"14\" y1=\"2\" y2=\"2\"></line><line x1=\"12\" x2=\"15\" y1=\"14\" y2=\"11\"></line><circle cx=\"12\" cy=\"14\" r=\"8\"></circle>",
+  'circle': "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle>",
+  'graduation-cap': "<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"></path><path d=\"M22 10v6\"></path><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"></path>",
+  'sparkles': "<path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"></path><path d=\"M20 3v4\"></path><path d=\"M22 5h-4\"></path><path d=\"M4 17v2\"></path><path d=\"M5 18H3\"></path>",
+  'chevron-right': "<path d=\"m9 18 6-6-6-6\"></path>",
+  'book-open': "<path d=\"M12 7v14\"></path><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"></path>",
   'message-square': "<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>",
   'clipboard-check': "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"></rect><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"></path><path d=\"m9 14 2 2 4-4\"></path>",
   'arrow-right': "<path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path>",
@@ -210,11 +219,11 @@ async function prepararPantallaLogin() {
 }
 
 async function cargarPerfilYEntrar(user) {
-  let { data: perfil } = await sb.from('profiles').select('nombre,rol,correo').eq('id', user.id).single();
+  let { data: perfil } = await sb.from('profiles').select('nombre,rol,correo,tour_visto').eq('id', user.id).single();
   if (!perfil) {
     // El perfil lo crea un disparador (trigger) al registrarse; puede tardar un instante.
     await new Promise(r => setTimeout(r, 800));
-    ({ data: perfil } = await sb.from('profiles').select('nombre,rol,correo').eq('id', user.id).single());
+    ({ data: perfil } = await sb.from('profiles').select('nombre,rol,correo,tour_visto').eq('id', user.id).single());
   }
 
   sesion = {
@@ -233,10 +242,17 @@ async function cargarPerfilYEntrar(user) {
   cambiarVentana('dashboard');
   await cargarConfiguracionLab();
   await cargarTodo();
+  iniciarPresencia();
+
+  if (sesion.rol === 'editor' && perfil && !perfil.tour_visto) {
+    abrirTour();
+  }
 }
 
 async function cerrarSesion() {
   if (!confirm('¿Quieres cerrar tu sesión?')) return;
+  detenerPresencia();
+  if (_temporizadorTurno) clearInterval(_temporizadorTurno);
   await sb.auth.signOut();
   sesion = null;
 
@@ -309,6 +325,7 @@ const VENTANAS = {
   pcs:       { boton: 'btn-nav-pcs',       seccion: 'ventana-pcs',       titulo: 'Equipos de cómputo', subtitulo: 'Computadoras, sistemas operativos y programas instalados' },
   bitacora:  { boton: 'btn-nav-bitacora',  seccion: 'ventana-bitacora',  titulo: 'Bitácora de mantenimiento', subtitulo: 'Trabajos preventivos, correctivos y actualizaciones' },
   cuentas:   { boton: 'btn-nav-cuentas',   seccion: 'ventana-cuentas',   titulo: 'Cuentas', subtitulo: 'Da de alta o elimina accesos de encargados y prestadores' },
+  horas: { boton: 'btn-nav-horas', seccion: 'ventana-horas', titulo: 'Horas de servicio', subtitulo: 'Registra tu turno y consulta tus horas acumuladas' },
   configuracion: { boton: 'btn-nav-configuracion', seccion: 'ventana-configuracion', titulo: 'Configuración', subtitulo: 'Ajustes de tu cuenta y del laboratorio' }
 };
 
@@ -331,6 +348,7 @@ function cambiarVentana(ventana) {
   if (ventana === 'bitacora') prepararVentanaBitacora();
   if (ventana === 'cuentas') renderizarCuentas();
   if (ventana === 'configuracion') prepararVentanaConfiguracion();
+  if (ventana === 'horas') prepararVentanaHoras();
 
   cerrarMenu();
   refrescarIconos();
@@ -1518,6 +1536,300 @@ async function eliminarCuenta(id) {
 }
 
 // ============================================================
+// ============================================================
+// QUIÉN ESTÁ CONECTADO (presencia en vivo con Supabase Realtime)
+// ============================================================
+
+let canalPresencia = null;
+let presenciaConectados = [];
+
+function iniciarPresencia() {
+  if (canalPresencia) return;
+
+  canalPresencia = sb.channel('presencia-lab', { config: { presence: { key: sesion.id } } });
+
+  canalPresencia.on('presence', { event: 'sync' }, () => {
+    const estado = canalPresencia.presenceState();
+    presenciaConectados = Object.values(estado).map(arr => arr[0]);
+    renderizarPresencia();
+  });
+
+  canalPresencia.subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') {
+      await canalPresencia.track({ nombre: sesion.nombre, rol: sesion.rol });
+    }
+  });
+}
+
+function detenerPresencia() {
+  if (canalPresencia) {
+    sb.removeChannel(canalPresencia);
+    canalPresencia = null;
+  }
+  presenciaConectados = [];
+}
+
+function renderizarPresencia() {
+  const n = presenciaConectados.length;
+  const indicador = document.getElementById('indicador-conectados');
+  if (indicador) {
+    document.getElementById('indicador-conectados-texto').textContent = `${n} ${n === 1 ? 'conectado' : 'conectados'}`;
+    indicador.title = presenciaConectados.map(p => p.nombre).join(', ');
+  }
+
+  const lista = document.getElementById('lista-conectados-config');
+  if (lista) {
+    lista.innerHTML = presenciaConectados.length === 0
+      ? `<li class="text-muted">Nadie más conectado ahorita.</li>`
+      : presenciaConectados.map(p => `
+          <li class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-ok shrink-0"></span>
+            <span class="truncate">${esc(p.nombre)}</span>
+            <span class="text-xs text-muted shrink-0">${p.rol === 'admin' ? 'Administrador' : 'Editor'}</span>
+          </li>`).join('');
+  }
+}
+
+// ============================================================
+// HORAS DE SERVICIO SOCIAL
+// ============================================================
+
+let _misTurnos = [];
+let _temporizadorTurno = null;
+
+function formatoHorasMin(ms) {
+  const totalMin = Math.floor(ms / 60000);
+  const horas = Math.floor(totalMin / 60);
+  const min = totalMin % 60;
+  return `${horas} h ${min} min`;
+}
+
+function formatoCronometro(ms) {
+  const totalSeg = Math.floor(ms / 1000);
+  const h = String(Math.floor(totalSeg / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSeg % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSeg % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+async function prepararVentanaHoras() {
+  const { data, error } = await sb.from('turnos_servicio').select('*').eq('usuario_id', sesion.id).order('inicio', { ascending: false });
+  mostrarAvisoSinConexion(!!error);
+  _misTurnos = data || [];
+
+  renderizarMisTurnos();
+  actualizarEstadoTurno();
+
+  const panelAdmin = document.getElementById('horas-panel-admin');
+  panelAdmin.classList.toggle('hidden', sesion.rol !== 'admin');
+  if (sesion.rol === 'admin') await renderizarResumenHoras();
+}
+
+function renderizarMisTurnos() {
+  const cont = document.getElementById('lista-mis-turnos');
+  cont.innerHTML = '';
+
+  if (_misTurnos.length === 0) {
+    cont.innerHTML = `<li class="text-sm text-muted py-6 text-center">Todavía no registras turnos. Usa el botón "Iniciar turno" cuando llegues al laboratorio.</li>`;
+    return;
+  }
+
+  _misTurnos.forEach(t => {
+    const inicio = new Date(t.inicio);
+    const fin = t.fin ? new Date(t.fin) : null;
+    const li = document.createElement('li');
+    li.className = "flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-sm";
+    li.innerHTML = `
+      <div class="min-w-0">
+        <p class="font-medium">${inicio.toLocaleDateString()}</p>
+        <p class="text-xs text-muted">
+          ${inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          –
+          ${fin ? fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'en curso'}
+        </p>
+      </div>
+      <span class="badge ${fin ? 'badge-neutral' : 'badge-ok'}">${fin ? formatoHorasMin(fin - inicio) : 'En curso'}</span>
+    `;
+    cont.appendChild(li);
+  });
+}
+
+function actualizarEstadoTurno() {
+  if (_temporizadorTurno) { clearInterval(_temporizadorTurno); _temporizadorTurno = null; }
+
+  const abierto = _misTurnos.find(t => !t.fin);
+  const boton = document.getElementById('btn-turno');
+  const estadoTexto = document.getElementById('horas-estado-texto');
+  const cronometro = document.getElementById('horas-cronometro');
+
+  const totalCerrado = _misTurnos.filter(t => t.fin).reduce((acc, t) => acc + (new Date(t.fin) - new Date(t.inicio)), 0);
+  document.getElementById('horas-total-propio').textContent = formatoHorasMin(totalCerrado);
+
+  if (abierto) {
+    boton.innerHTML = `<i data-lucide="square" class="w-4 h-4"></i> Terminar turno`;
+    estadoTexto.textContent = `Turno iniciado a las ${new Date(abierto.inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+
+    const pintar = () => { cronometro.textContent = formatoCronometro(new Date() - new Date(abierto.inicio)); };
+    pintar();
+    _temporizadorTurno = setInterval(pintar, 1000);
+  } else {
+    boton.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> Iniciar turno`;
+    estadoTexto.textContent = 'No tienes un turno activo.';
+    cronometro.textContent = '00:00:00';
+  }
+  refrescarIconos();
+}
+
+async function alternarTurno() {
+  const abierto = _misTurnos.find(t => !t.fin);
+  const boton = document.getElementById('btn-turno');
+  boton.disabled = true;
+
+  if (abierto) {
+    const { error } = await sb.from('turnos_servicio').update({ fin: new Date().toISOString() }).eq('id', abierto.id);
+    if (error) { alert('No se pudo cerrar el turno: ' + error.message); boton.disabled = false; return; }
+  } else {
+    const { error } = await sb.from('turnos_servicio').insert({ usuario_id: sesion.id, inicio: new Date().toISOString() });
+    if (error) { alert('No se pudo iniciar el turno: ' + error.message); boton.disabled = false; return; }
+  }
+
+  boton.disabled = false;
+  await prepararVentanaHoras();
+}
+
+async function renderizarResumenHoras() {
+  const cont = document.getElementById('lista-resumen-horas');
+  cont.innerHTML = `<li class="text-sm text-muted py-4 text-center">Cargando...</li>`;
+
+  const [{ data: perfiles }, { data: turnos }] = await Promise.all([
+    sb.from('profiles').select('id,nombre,rol'),
+    sb.from('turnos_servicio').select('usuario_id,inicio,fin')
+  ]);
+
+  const totales = {};
+  (turnos || []).filter(t => t.fin).forEach(t => {
+    totales[t.usuario_id] = (totales[t.usuario_id] || 0) + (new Date(t.fin) - new Date(t.inicio));
+  });
+
+  const filas = (perfiles || [])
+    .map(p => ({ ...p, total: totales[p.id] || 0 }))
+    .sort((a, b) => b.total - a.total);
+
+  cont.innerHTML = '';
+  if (filas.every(f => f.total === 0)) {
+    cont.innerHTML = `<li class="text-sm text-muted py-4 text-center">Todavía no hay turnos registrados.</li>`;
+    return;
+  }
+
+  filas.forEach(f => {
+    const li = document.createElement('li');
+    li.className = "flex items-center justify-between gap-3 rounded-lg bg-sunken px-3 py-2 text-sm";
+    li.innerHTML = `
+      <span class="truncate">${esc(f.nombre)} <span class="text-xs text-muted">(${f.rol === 'admin' ? 'Administrador' : 'Editor'})</span></span>
+      <span class="font-semibold shrink-0">${formatoHorasMin(f.total)}</span>
+    `;
+    cont.appendChild(li);
+  });
+}
+
+// ============================================================
+// TOUR DE BIENVENIDA
+// ============================================================
+
+let _tourPaso = 0;
+
+function pasosTour() {
+  const esEditor = sesion.rol === 'editor';
+  return [
+    {
+      icono: 'sparkles',
+      titulo: `¡Bienvenido a ${nombreLaboratorio}!`,
+      texto: 'Este es el sistema donde el laboratorio lleva su inventario de computadoras, programas instalados y mantenimiento. Te damos un recorrido rápido.'
+    },
+    {
+      icono: 'monitor',
+      titulo: 'Equipos de cómputo',
+      texto: 'Aquí ves todas las computadoras: su sistema operativo, estado y los programas instalados. Usa "Ver programas" para marcar si un programa funciona, falla o no está instalado.'
+    },
+    {
+      icono: 'history',
+      titulo: 'Bitácora y Notas rápidas',
+      texto: 'La Bitácora es para mantenimientos formales (preventivo, correctivo, actualización). Las Notas rápidas, en el Panel principal, son para avisos chicos del día a día, como un cable suelto.'
+    },
+    {
+      icono: 'clipboard-check',
+      titulo: 'Revisión rápida',
+      texto: 'En Equipos de cómputo, el botón "Revisión rápida" te lleva computadora por computadora para actualizar de un jalón su estado, su conexión y sus programas.'
+    },
+    {
+      icono: 'timer',
+      titulo: 'Tus horas de servicio',
+      texto: 'En "Horas de servicio" puedes marcar cuándo llegas y cuándo te vas. Ahí se va sumando tu tiempo, útil para tu carta de liberación.'
+    },
+    {
+      icono: esEditor ? 'lock' : 'book-open',
+      titulo: esEditor ? 'Lo que no puedes hacer' : 'Un último detalle',
+      texto: esEditor
+        ? 'Como editor puedes agregar y modificar casi todo, pero no puedes borrar equipos, programas ni cuentas. Si algo necesita eliminarse, pídeselo a un encargado.'
+        : 'Puedes volver a ver este tour cuando quieras desde Configuración. ¡Listo para empezar!'
+    }
+  ];
+}
+
+function abrirTour() {
+  _tourPaso = 0;
+  mostrarPasoTour();
+  document.getElementById('modal-tour').classList.remove('hidden');
+}
+
+function mostrarPasoTour() {
+  const pasos = pasosTour();
+  const paso = pasos[_tourPaso];
+
+  const iconoEl = document.getElementById('tour-icono');
+  if (iconoEl) {
+    const interno = ICONOS[paso.icono];
+    if (interno) iconoEl.innerHTML = interno; // ya es <svg> (refrescarIconos ya corrió antes)
+    iconoEl.setAttribute('data-lucide', paso.icono);
+  }
+  document.getElementById('tour-titulo').textContent = paso.titulo;
+  document.getElementById('tour-texto').textContent = paso.texto;
+
+  document.getElementById('tour-puntos').innerHTML = pasos.map((_, i) =>
+    `<span class="w-1.5 h-1.5 rounded-full ${i === _tourPaso ? 'bg-brand' : 'bg-sunken'}"></span>`
+  ).join('');
+
+  document.getElementById('tour-btn-anterior').classList.toggle('invisible', _tourPaso === 0);
+  document.getElementById('tour-btn-siguiente').innerHTML = (_tourPaso === pasos.length - 1)
+    ? 'Entendido'
+    : `Siguiente <i data-lucide="chevron-right" class="w-4 h-4"></i>`;
+
+  refrescarIconos();
+}
+
+function anteriorPasoTour() {
+  if (_tourPaso === 0) return;
+  _tourPaso--;
+  mostrarPasoTour();
+}
+
+function siguientePasoTour() {
+  const pasos = pasosTour();
+  if (_tourPaso >= pasos.length - 1) {
+    cerrarTour(true);
+  } else {
+    _tourPaso++;
+    mostrarPasoTour();
+  }
+}
+
+async function cerrarTour(marcarVisto) {
+  document.getElementById('modal-tour').classList.add('hidden');
+  if (marcarVisto) {
+    await sb.from('profiles').update({ tour_visto: true }).eq('id', sesion.id);
+  }
+}
+
 // TECLA ESCAPE Y ARRANQUE
 // ============================================================
 
@@ -1525,7 +1837,8 @@ document.addEventListener('keydown', (e) => {
   const abierto = id => !document.getElementById(id).classList.contains('hidden');
 
   if (e.key === 'Escape') {
-    if (abierto('modal-movimientos')) cerrarModalMovimientos();
+    if (abierto('modal-tour')) cerrarTour(true);
+    else if (abierto('modal-movimientos')) cerrarModalMovimientos();
     else if (abierto('modal-revision-rapida')) cerrarRevisionRapida();
     else if (abierto('modal-software-pc')) cerrarModalSoftwarePC();
     else if (abierto('modal-pc')) cerrarModalPC();
@@ -1537,7 +1850,7 @@ document.addEventListener('keydown', (e) => {
   // Los atajos "/" y "N" no deben interferir mientras se escribe en un campo,
   // ni mientras hay un modal abierto encima.
   const escribiendo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software') || abierto('modal-movimientos') || abierto('modal-revision-rapida');
+  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software') || abierto('modal-movimientos') || abierto('modal-revision-rapida') || abierto('modal-tour');
   if (escribiendo || hayModalAbierto || !sesion) return;
 
   if (e.key === '/' && _ventanaActual === 'pcs') {

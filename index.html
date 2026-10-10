@@ -356,6 +356,9 @@
         <button id="btn-nav-cuentas" onclick="cambiarVentana('cuentas')" class="nav-item hidden">
           <i data-lucide="users" class="w-[18px] h-[18px]"></i> Cuentas
         </button>
+        <button id="btn-nav-horas" onclick="cambiarVentana('horas')" class="nav-item">
+          <i data-lucide="timer" class="w-[18px] h-[18px]"></i> Horas de servicio
+        </button>
         <button id="btn-nav-configuracion" onclick="cambiarVentana('configuracion')" class="nav-item">
           <i data-lucide="settings" class="w-[18px] h-[18px]"></i> Configuración
         </button>
@@ -397,6 +400,13 @@
       </div>
 
       <div class="flex items-center gap-3 shrink-0">
+        <button type="button" onclick="cambiarVentana('configuracion')" id="indicador-conectados" class="hidden sm:flex items-center gap-1.5 text-xs text-muted hover:text-ink transition-colors" title="">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-ok opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-ok"></span>
+          </span>
+          <span id="indicador-conectados-texto">1 conectado</span>
+        </button>
         <span id="reloj-vivo" class="hidden sm:block text-sm text-muted tabular">00:00:00</span>
         <button type="button" onclick="alternarTema()" class="btn btn-outline btn-square" aria-label="Cambiar entre modo claro y oscuro" title="Cambiar tema">
           <span class="ic-luna"><i data-lucide="moon" class="w-4 h-4"></i></span>
@@ -658,6 +668,39 @@
           </div>
         </section>
 
+        <!-- VENTANA: HORAS DE SERVICIO SOCIAL -->
+        <section id="ventana-horas" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+            <div class="panel p-6 space-y-4 text-center">
+              <p class="text-sm text-muted">Tu turno actual</p>
+              <p id="horas-cronometro" class="font-display text-4xl font-semibold tabular">00:00:00</p>
+              <p id="horas-estado-texto" class="text-sm text-muted">No tienes un turno activo.</p>
+              <button id="btn-turno" onclick="alternarTurno()" class="btn btn-primary w-full py-2.5">
+                <i data-lucide="play" class="w-4 h-4"></i> Iniciar turno
+              </button>
+              <div class="pt-4 border-t border-line">
+                <p class="text-sm text-muted">Total acumulado</p>
+                <p id="horas-total-propio" class="font-display text-2xl font-semibold mt-1">0 h 0 min</p>
+              </div>
+            </div>
+
+            <div class="lg:col-span-2 panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg">Mis turnos</h3>
+              <div class="overflow-y-auto max-h-96">
+                <ul id="lista-mis-turnos" class="space-y-2"></ul>
+              </div>
+            </div>
+
+          </div>
+
+          <div id="horas-panel-admin" class="hidden panel p-5 sm:p-6 space-y-4">
+            <h3 class="font-display font-semibold text-lg">Resumen por persona</h3>
+            <p class="text-sm text-muted">Total de horas acumuladas por cada cuenta, útil para las cartas de liberación de servicio social.</p>
+            <ul id="lista-resumen-horas" class="space-y-2"></ul>
+          </div>
+        </section>
+
         <!-- VENTANA 5: CONFIGURACIÓN -->
         <section id="ventana-configuracion" class="hidden">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -693,9 +736,24 @@
                 <i data-lucide="keyboard" class="w-5 h-5 text-muted shrink-0"></i>
               </div>
 
+              <button onclick="abrirTour()" class="btn btn-outline w-full">
+                <i data-lucide="graduation-cap" class="w-4 h-4"></i> Ver el tour de bienvenida
+              </button>
+
               <button onclick="cerrarSesion()" class="btn btn-outline w-full">
                 <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar sesión
               </button>
+            </div>
+
+            <div class="panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-ok opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-ok"></span>
+                </span>
+                Quién está conectado
+              </h3>
+              <ul id="lista-conectados-config" class="space-y-2 text-sm"></ul>
             </div>
 
             <div id="config-panel-laboratorio" class="panel p-5 sm:p-6 space-y-4 hidden">
@@ -725,6 +783,32 @@
     <button onclick="deshacerAccion()" class="font-semibold underline underline-offset-2 flex items-center gap-1">
       <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Deshacer
     </button>
+  </div>
+
+  <!-- ============ MODAL: TOUR DE BIENVENIDA ============ -->
+  <div id="modal-tour" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-[60]" role="dialog" aria-modal="true">
+    <div class="panel w-full max-w-md p-6 space-y-5 relative shadow-2xl">
+      <button onclick="cerrarTour(true)" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Saltar el tour">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="text-center space-y-3 pt-2">
+        <i id="tour-icono" data-lucide="sparkles" class="w-10 h-10 text-brand mx-auto"></i>
+        <p id="tour-titulo" class="font-display text-xl font-semibold">-</p>
+        <p id="tour-texto" class="text-sm text-muted leading-relaxed">-</p>
+      </div>
+
+      <div id="tour-puntos" class="flex items-center justify-center gap-1.5"></div>
+
+      <div class="flex items-center gap-2">
+        <button id="tour-btn-anterior" onclick="anteriorPasoTour()" class="btn btn-outline">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <button id="tour-btn-siguiente" onclick="siguientePasoTour()" class="btn btn-primary flex-1">
+          Siguiente <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ============ MODAL: HISTORIAL DE MOVIMIENTOS ============ -->
@@ -957,6 +1041,6 @@
     window.SUPABASE_URL = 'https://dnzhjanlarmjgyrdhyqi.supabase.co';
     window.SUPABASE_ANON_KEY = 'sb_publishable_bVNRdEx1KM0gi0NjL2nSwA_KY87JAF8';
   </script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
