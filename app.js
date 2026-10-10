@@ -1037,8 +1037,10 @@ async function eliminarProgramaCatalogo(id) {
   actualizarTodo();
 }
 
-function renderizarTarjetasSoftwarePC() {
-  const grid = document.getElementById('grid-software-pc');
+// containerId permite reutilizar esta misma rejilla en el modal normal de
+// programas y también dentro de la Revisión rápida.
+function renderizarTarjetasSoftwarePC(containerId = 'grid-software-pc') {
+  const grid = document.getElementById(containerId);
   grid.innerHTML = '';
 
   if (catalogoProgramas.length === 0) {
@@ -1056,7 +1058,7 @@ function renderizarTarjetasSoftwarePC() {
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.onclick = () => alternarEstadoSoftware(prog, estadoActual);
+    btn.onclick = () => alternarEstadoSoftware(prog, estadoActual, containerId);
     btn.className = config.clase;
     btn.innerHTML = `
       <div class="flex items-start justify-between gap-2 w-full">
@@ -1070,14 +1072,14 @@ function renderizarTarjetasSoftwarePC() {
   refrescarIconos();
 }
 
-async function alternarEstadoSoftware(prog, estadoActual) {
+async function alternarEstadoSoftware(prog, estadoActual, containerId = 'grid-software-pc') {
   let nuevoEstado = 'funcional';
   if (estadoActual === 'funcional') nuevoEstado = 'no_funcional';
   else if (estadoActual === 'no_funcional') nuevoEstado = 'no_instalado';
 
   const pc = listaPCs.find(p => p.id === pcSeleccionadaId);
   pc.softwareEstado[prog.nombre] = nuevoEstado; // optimista: se ve al instante
-  renderizarTarjetasSoftwarePC();
+  renderizarTarjetasSoftwarePC(containerId);
 
   const { error } = await sb.from('pc_software').upsert({ computadora_id: pc.id, programa_id: prog.id, estado: nuevoEstado });
   if (error) alert('No se pudo guardar el cambio: ' + error.message);
@@ -1197,111 +1199,119 @@ function renderizarAtencion() {
 }
 
 // ============================================================
-// MODO "INVENTARIO FÍSICO"
+// REVISIÓN RÁPIDA (equipo por equipo: estado, internet y programas)
 // ============================================================
+// A diferencia de un conteo físico, aquí no preguntamos si la computadora
+// está en su lugar (son de escritorio, casi no se mueven). En su lugar,
+// recorremos cada equipo para revisar y actualizar rápido lo que sí cambia
+// seguido: si funciona, si tiene internet/IP, y qué programas tiene.
 
-let _invFisico = null; // { equipos, indice, resultados }
+let _revision = null; // { equipos, indice, huboCambios }
 
-function iniciarInventarioFisico() {
-  if (listaPCs.length === 0) { alert('No hay equipos registrados para contar.'); return; }
+function iniciarRevisionRapida() {
+  if (listaPCs.length === 0) { alert('No hay equipos registrados para revisar.'); return; }
 
-  _invFisico = { equipos: [...listaPCs], indice: 0, resultados: {} };
-  document.getElementById('inv-fisico-paso').classList.remove('hidden');
-  document.getElementById('inv-fisico-resumen').classList.add('hidden');
-  document.getElementById('modal-inventario-fisico').classList.remove('hidden');
-  mostrarEquipoInventarioFisico();
+  _revision = { equipos: [...listaPCs], indice: 0, huboCambios: 0 };
+  document.getElementById('rev-paso').classList.remove('hidden');
+  document.getElementById('rev-fin').classList.add('hidden');
+  document.getElementById('modal-revision-rapida').classList.remove('hidden');
+  mostrarPasoRevision();
 }
 
-function mostrarEquipoInventarioFisico() {
-  const { equipos, indice } = _invFisico;
+function mostrarPasoRevision() {
+  const { equipos, indice } = _revision;
   const pc = equipos[indice];
+  pcSeleccionadaId = pc.id; // para que la rejilla de programas sepa de cuál equipo es
 
-  document.getElementById('inv-fisico-progreso').textContent = `Equipo ${indice + 1} de ${equipos.length}`;
-  document.getElementById('inv-fisico-barra').style.width = `${(indice / equipos.length) * 100}%`;
-  document.getElementById('inv-fisico-nombre').textContent = pc.nombre;
-  document.getElementById('inv-fisico-detalle').textContent = `${pc.marca}${pc.ubicacion ? ' · ' + pc.ubicacion : ''}`;
+  document.getElementById('rev-progreso').textContent = `Equipo ${indice + 1} de ${equipos.length}`;
+  document.getElementById('rev-barra').style.width = `${(indice / equipos.length) * 100}%`;
+  document.getElementById('rev-nombre').textContent = pc.nombre;
+  document.getElementById('rev-detalle').textContent = `${pc.marca}${pc.ubicacion ? ' · ' + pc.ubicacion : ''}`;
+
+  document.getElementById('rev-estado').value = pc.funcional ? 'funcional' : 'atencion';
+  document.getElementById('rev-problema').value = pc.problema || '';
+  alternarCampoProblemaRevision();
+
+  document.getElementById('rev-internet').value = pc.internet ? 'si' : 'no';
+  document.getElementById('rev-ip').value = pc.ip || '';
+  alternarCampoIpRevision();
+
+  renderizarTarjetasSoftwarePC('grid-software-revision');
+
+  document.getElementById('rev-btn-anterior').disabled = indice === 0;
+  document.getElementById('rev-btn-siguiente').textContent = (indice === equipos.length - 1) ? 'Guardar y terminar' : 'Guardar y siguiente';
+
   refrescarIconos();
 }
 
-function responderInventarioFisico(encontrado) {
-  const pc = _invFisico.equipos[_invFisico.indice];
-  _invFisico.resultados[pc.id] = encontrado;
-  avanzarInventarioFisico();
+function alternarCampoProblemaRevision() {
+  document.getElementById('rev-problema-container').classList.toggle('hidden', document.getElementById('rev-estado').value !== 'atencion');
 }
 
-function saltarInventarioFisico() {
-  avanzarInventarioFisico();
+function alternarCampoIpRevision() {
+  document.getElementById('rev-ip-container').classList.toggle('hidden', document.getElementById('rev-internet').value !== 'si');
 }
 
-function avanzarInventarioFisico() {
-  _invFisico.indice++;
-  if (_invFisico.indice >= _invFisico.equipos.length) {
-    mostrarResumenInventarioFisico();
+async function guardarYAvanzarRevision() {
+  const pc = _revision.equipos[_revision.indice];
+  const funcional = document.getElementById('rev-estado').value === 'funcional';
+  const internet = document.getElementById('rev-internet').value === 'si';
+
+  const cambios = {
+    funcional,
+    problema: funcional ? '' : document.getElementById('rev-problema').value.trim(),
+    internet,
+    ip: internet ? document.getElementById('rev-ip').value.trim() : '',
+    modificado_por: sesion.nombre
+  };
+
+  const boton = document.getElementById('rev-btn-siguiente');
+  boton.disabled = true;
+  const { error } = await sb.from('computadoras').update(cambios).eq('id', pc.id);
+  boton.disabled = false;
+  if (error) { alert('No se pudo guardar: ' + error.message); return; }
+
+  Object.assign(pc, cambios);
+  _revision.huboCambios++;
+  avanzarRevision();
+}
+
+function saltarPasoRevision() {
+  avanzarRevision();
+}
+
+function irPasoAnteriorRevision() {
+  if (_revision.indice === 0) return;
+  _revision.indice--;
+  mostrarPasoRevision();
+}
+
+function avanzarRevision() {
+  _revision.indice++;
+  if (_revision.indice >= _revision.equipos.length) {
+    mostrarFinRevision();
   } else {
-    mostrarEquipoInventarioFisico();
+    mostrarPasoRevision();
   }
 }
 
-function mostrarResumenInventarioFisico() {
-  document.getElementById('inv-fisico-paso').classList.add('hidden');
-  document.getElementById('inv-fisico-resumen').classList.remove('hidden');
-  document.getElementById('inv-fisico-barra').style.width = '100%';
+async function mostrarFinRevision() {
+  document.getElementById('rev-paso').classList.add('hidden');
+  document.getElementById('rev-fin').classList.remove('hidden');
+  document.getElementById('rev-barra').style.width = '100%';
 
-  const { resultados, equipos } = _invFisico;
-  const revisados = Object.keys(resultados).length;
-  const faltantes = equipos.filter(pc => resultados[pc.id] === false);
-
-  document.getElementById('inv-fisico-resumen-texto').textContent =
-    `Se revisaron ${revisados} de ${equipos.length} equipos. ${faltantes.length} no se encontraron.`;
-
-  const cont = document.getElementById('inv-fisico-faltantes-cont');
-  cont.classList.toggle('hidden', faltantes.length === 0);
-
-  if (faltantes.length > 0) {
-    document.getElementById('inv-fisico-faltantes-lista').innerHTML = faltantes
-      .map(pc => `<li class="rounded-lg bg-bad-soft text-bad-ink px-3 py-2">${esc(pc.nombre)} — ${esc(pc.marca)}</li>`)
-      .join('');
-  }
+  const total = _revision.equipos.length;
+  document.getElementById('rev-fin-texto').textContent =
+    `Revisaste ${total} ${total === 1 ? 'equipo' : 'equipos'}. Los cambios ya están guardados.`;
   refrescarIconos();
-}
 
-async function guardarInventarioFisico() {
-  const { resultados } = _invFisico;
-  const fecha = new Date().toISOString().slice(0, 10);
-
-  const filas = Object.entries(resultados).map(([computadora_id, encontrado]) => ({
-    computadora_id: Number(computadora_id),
-    encontrado,
-    fecha,
-    autor_id: sesion.id,
-    autor_nombre: sesion.nombre
-  }));
-
-  if (filas.length > 0) {
-    const { error } = await sb.from('verificaciones_fisicas').insert(filas);
-    if (error) { alert('No se pudo guardar la verificación: ' + error.message); return; }
-  }
-
-  const marcarAtencion = document.getElementById('inv-fisico-marcar-atencion').checked;
-  if (marcarAtencion) {
-    const idsFaltantes = Object.entries(resultados).filter(([, enc]) => !enc).map(([id]) => Number(id));
-    for (const id of idsFaltantes) {
-      await sb.from('computadoras').update({
-        funcional: false,
-        problema: `No se encontró en la verificación física del ${fecha}.`,
-        modificado_por: sesion.nombre
-      }).eq('id', id);
-    }
-  }
-
-  cerrarInventarioFisico();
   await cargarPCs();
   actualizarTodo();
 }
 
-function cerrarInventarioFisico() {
-  document.getElementById('modal-inventario-fisico').classList.add('hidden');
-  _invFisico = null;
+function cerrarRevisionRapida() {
+  document.getElementById('modal-revision-rapida').classList.add('hidden');
+  _revision = null;
 }
 
 // ============================================================
@@ -1516,7 +1526,7 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape') {
     if (abierto('modal-movimientos')) cerrarModalMovimientos();
-    else if (abierto('modal-inventario-fisico')) cerrarInventarioFisico();
+    else if (abierto('modal-revision-rapida')) cerrarRevisionRapida();
     else if (abierto('modal-software-pc')) cerrarModalSoftwarePC();
     else if (abierto('modal-pc')) cerrarModalPC();
     else if (abierto('modal-catalogo-software')) cerrarModalCatalogoSoftware();
@@ -1527,7 +1537,7 @@ document.addEventListener('keydown', (e) => {
   // Los atajos "/" y "N" no deben interferir mientras se escribe en un campo,
   // ni mientras hay un modal abierto encima.
   const escribiendo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software') || abierto('modal-movimientos') || abierto('modal-inventario-fisico');
+  const hayModalAbierto = abierto('modal-pc') || abierto('modal-software-pc') || abierto('modal-catalogo-software') || abierto('modal-movimientos') || abierto('modal-revision-rapida');
   if (escribiendo || hayModalAbierto || !sesion) return;
 
   if (e.key === '/' && _ventanaActual === 'pcs') {
