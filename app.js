@@ -8,6 +8,19 @@ function esc(valor) {
   }[c]));
 }
 
+// Para cuando un texto dinámico (como el nombre de un equipo) se pasa como
+// argumento de JavaScript entre comillas simples dentro de un onclick="...".
+// esc() por sí solo no basta: si el texto trae un apóstrofe o unas comillas,
+// puede romper el atributo o el propio código. Esto escapa ambas capas.
+function escAtributoJS(valor) {
+  return String(valor ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // ============================================================
 // SUPABASE: conexión y datos en memoria
 // ============================================================
@@ -87,6 +100,9 @@ function refrescarIconos() {
 
 // ÍCONOS (Lucide, lucide.dev, licencia ISC) incrustados para no depender de internet
 const ICONOS = {
+  'clock': "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><polyline points=\"12 6 12 12 16 14\"></polyline>",
+  'send': "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"></path><path d=\"m21.854 2.147-10.94 10.939\"></path>",
+  'edit-3': "<path d=\"M12 20h9\"></path><path d=\"M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z\"></path><path d=\"m15 5 3 3\"></path>",
   'bell': "<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"></path><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"></path>",
   'log-in': "<path d=\"M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4\"></path><polyline points=\"10 17 15 12 10 7\"></polyline><line x1=\"15\" x2=\"3\" y1=\"12\" y2=\"12\"></line>",
   'shield-check': "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"m9 12 2 2 4-4\"></path>",
@@ -252,6 +268,8 @@ async function cargarPerfilYEntrar(user) {
     await actualizarBadgeSolicitudes();
     iniciarNotificacionesHoras();
   }
+  await actualizarBadgePeticiones();
+  iniciarNotificacionesPeticiones();
 
   if (sesion.rol === 'editor' && perfil && !perfil.tour_visto) {
     abrirTour();
@@ -262,6 +280,7 @@ async function cerrarSesion() {
   if (!confirm('¿Quieres cerrar tu sesión?')) return;
   detenerPresencia();
   detenerNotificacionesHoras();
+  detenerNotificacionesPeticiones();
   if (_temporizadorTurno) clearInterval(_temporizadorTurno);
   await sb.auth.signOut();
   sesion = null;
@@ -337,6 +356,7 @@ const VENTANAS = {
   cuentas:   { boton: 'btn-nav-cuentas',   seccion: 'ventana-cuentas',   titulo: 'Cuentas', subtitulo: 'Da de alta o elimina accesos de encargados y prestadores' },
   horas: { boton: 'btn-nav-horas', seccion: 'ventana-horas', titulo: 'Horas de servicio', subtitulo: 'Registra tu turno y consulta tus horas acumuladas' },
   solicitudes: { boton: 'btn-nav-solicitudes', seccion: 'ventana-solicitudes', titulo: 'Solicitudes', subtitulo: 'Confirma las llegadas y salidas de servicio social' },
+  peticiones: { boton: 'btn-nav-peticiones', seccion: 'ventana-peticiones', titulo: 'Peticiones', subtitulo: 'Pide o revisa la eliminación de equipos y programas' },
   configuracion: { boton: 'btn-nav-configuracion', seccion: 'ventana-configuracion', titulo: 'Configuración', subtitulo: 'Ajustes de tu cuenta y del laboratorio' }
 };
 
@@ -361,6 +381,7 @@ function cambiarVentana(ventana) {
   if (ventana === 'configuracion') prepararVentanaConfiguracion();
   if (ventana === 'horas') prepararVentanaHoras();
   if (ventana === 'solicitudes') renderizarSolicitudes();
+  if (ventana === 'peticiones') renderizarPeticiones();
 
   cerrarMenu();
   refrescarIconos();
@@ -773,7 +794,10 @@ function botonesAccionHTML(pc) {
       ${puedeBorrar() ? `
       <button onclick="eliminarPC(${pc.id})" title="Eliminar PC" aria-label="Eliminar ${esc(pc.nombre)}" class="btn btn-ghost btn-square btn-danger">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
-      </button>` : ''}
+      </button>` : `
+      <button onclick="solicitarEliminacion('computadora', ${pc.id}, '${escAtributoJS(pc.nombre)}')" title="Pedirle al encargado que lo elimine" aria-label="Pedir eliminación de ${esc(pc.nombre)}" class="btn btn-ghost btn-square">
+        <i data-lucide="send" class="w-4 h-4"></i>
+      </button>`}
     </div>`;
 }
 
@@ -1028,9 +1052,9 @@ function renderizarListaCatalogo() {
       <button onclick="eliminarProgramaCatalogo(${prog.id})" aria-label="Eliminar ${esc(prog.nombre)}" class="btn btn-ghost btn-square btn-danger">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
       </button>` : `
-      <span title="Solo un administrador puede eliminar programas" class="p-2 text-subtle">
-        <i data-lucide="lock" class="w-4 h-4"></i>
-      </span>`}
+      <button onclick="solicitarEliminacion('programa', ${prog.id}, '${escAtributoJS(prog.nombre)}')" title="Pedirle al encargado que lo elimine" aria-label="Pedir eliminación de ${esc(prog.nombre)}" class="btn btn-ghost btn-square">
+        <i data-lucide="send" class="w-4 h-4"></i>
+      </button>`}
     `;
     container.appendChild(li);
   });
@@ -1843,23 +1867,63 @@ async function renderizarSolicitudes() {
   await actualizarBadgeSolicitudes();
 }
 
+// Convierte una fecha a lo que necesita un <input type="datetime-local">,
+// en hora local (no UTC), formato "AAAA-MM-DDTHH:mm".
+function aInputDatetimeLocal(fecha) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`;
+}
+
 function filaSolicitud(t, tipo) {
   const nombre = _mapaNombresPerfiles[t.usuario_id] || 'Alguien';
-  const hora = new Date(tipo === 'llegada' ? t.inicio : t.fin).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const fechaHora = new Date(tipo === 'llegada' ? t.inicio : t.fin);
+  const hora = fechaHora.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const pregunta = tipo === 'llegada' ? '¿Sí llegó?' : '¿Sí se fue?';
   const fn = tipo === 'llegada' ? 'revisarLlegada' : 'revisarSalida';
+  const idCorreccion = `correccion-${tipo}-${t.id}`;
+  const idInputHora = `hora-corregida-${tipo}-${t.id}`;
 
   return `
-    <li class="flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-sm">
-      <div class="min-w-0">
-        <p class="font-medium truncate">${esc(nombre)}</p>
-        <p class="text-xs text-muted">${hora} · ${pregunta}</p>
+    <li class="rounded-xl border border-line p-3 text-sm space-y-2">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-medium truncate">${esc(nombre)}</p>
+          <p class="text-xs text-muted">${hora} · ${pregunta}</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="alternarCorreccionHora('${idCorreccion}')" title="Corregir la hora real" class="btn btn-ghost btn-square">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+          </button>
+          <button onclick="${fn}(${t.id}, false)" class="btn btn-sm bg-bad-soft text-bad-ink hover:opacity-80">No</button>
+          <button onclick="${fn}(${t.id}, true)" class="btn btn-sm bg-ok-soft text-ok-ink hover:opacity-80">Sí</button>
+        </div>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <button onclick="${fn}(${t.id}, false)" class="btn btn-sm bg-bad-soft text-bad-ink hover:opacity-80">No</button>
-        <button onclick="${fn}(${t.id}, true)" class="btn btn-sm bg-ok-soft text-ok-ink hover:opacity-80">Sí</button>
+
+      <div id="${idCorreccion}" class="hidden pt-2 border-t border-line space-y-2">
+        <label class="lbl" for="${idInputHora}">¿A qué hora ${tipo === 'llegada' ? 'llegó' : 'se fue'} en realidad?</label>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="datetime-local" id="${idInputHora}" value="${aInputDatetimeLocal(fechaHora)}" class="input flex-1">
+          <button onclick="guardarCorreccionHora(${t.id}, '${tipo}', '${idInputHora}')" class="btn btn-primary shrink-0">Guardar y aprobar</button>
+        </div>
       </div>
     </li>`;
+}
+
+function alternarCorreccionHora(idCorreccion) {
+  document.getElementById(idCorreccion).classList.toggle('hidden');
+}
+
+async function guardarCorreccionHora(turnoId, tipo, idInputHora) {
+  const valor = document.getElementById(idInputHora).value;
+  if (!valor) { alert('Elige una hora.'); return; }
+  const iso = new Date(valor).toISOString();
+
+  const { error } = tipo === 'llegada'
+    ? await sb.rpc('corregir_llegada', { p_turno_id: turnoId, p_nueva_hora: iso })
+    : await sb.rpc('corregir_salida', { p_turno_id: turnoId, p_nueva_hora: iso });
+
+  if (error) { alert('No se pudo guardar: ' + error.message); return; }
+  await renderizarSolicitudes();
 }
 
 async function revisarLlegada(turnoId, aprobar) {
@@ -1925,6 +1989,194 @@ function detenerNotificacionesHoras() {
 async function nombrePorIdConCache(id) {
   if (!_mapaNombresPerfiles[id]) await cargarMapaNombres();
   return _mapaNombresPerfiles[id] || 'Alguien';
+}
+
+// ============================================================
+// PETICIONES DE BORRADO
+// ============================================================
+// Un editor no puede borrar equipos ni programas directamente, pero puede
+// pedirle al administrador que lo haga. Todo pasa por funciones del
+// servidor (RPC), nunca escribiendo la tabla directo.
+
+let _solicitudEliminarContexto = null; // { tipo, entidadId, descripcion }
+
+function solicitarEliminacion(tipo, entidadId, descripcion) {
+  _solicitudEliminarContexto = { tipo, entidadId, descripcion };
+  document.getElementById('solicitud-eliminar-descripcion').textContent = descripcion;
+  document.getElementById('solicitud-eliminar-motivo').value = '';
+  document.getElementById('modal-solicitar-eliminacion').classList.remove('hidden');
+}
+
+function cerrarModalSolicitarEliminacion() {
+  document.getElementById('modal-solicitar-eliminacion').classList.add('hidden');
+  _solicitudEliminarContexto = null;
+}
+
+document.getElementById('form-solicitar-eliminacion').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!_solicitudEliminarContexto) return;
+  const { tipo, entidadId, descripcion } = _solicitudEliminarContexto;
+  const motivo = document.getElementById('solicitud-eliminar-motivo').value.trim();
+
+  const boton = e.target.querySelector('button[type=submit]');
+  boton.disabled = true;
+  const { error } = await sb.rpc('solicitar_eliminacion', { p_tipo: tipo, p_entidad_id: entidadId, p_descripcion: descripcion, p_motivo: motivo });
+  boton.disabled = false;
+
+  if (error) { alert('No se pudo enviar la petición: ' + error.message); return; }
+
+  cerrarModalSolicitarEliminacion();
+  mostrarToastNotificacion('Tu petición fue enviada. Puedes ver su estado en "Peticiones".');
+  if (_ventanaActual === 'peticiones') renderizarPeticiones();
+});
+
+function etiquetaEstadoPeticion(estado) {
+  if (estado === 'aprobada') return { texto: 'Aprobada', clase: 'badge-ok' };
+  if (estado === 'rechazada') return { texto: 'Rechazada', clase: 'badge-bad' };
+  return { texto: 'Pendiente', clase: 'badge-neutral' };
+}
+
+function etiquetaTipoPeticion(tipo) {
+  if (tipo === 'computadora') return 'Equipo';
+  if (tipo === 'programa') return 'Programa';
+  return 'Otro';
+}
+
+async function renderizarPeticiones() {
+  const esAdmin = sesion.rol === 'admin';
+  document.getElementById('peticiones-vista-admin').classList.toggle('hidden', !esAdmin);
+  document.getElementById('peticiones-vista-propia').classList.toggle('hidden', esAdmin);
+
+  if (esAdmin) {
+    const [{ data: pendientes, error: e1 }, { data: historial, error: e2 }] = await Promise.all([
+      sb.from('solicitudes_eliminacion').select('*').eq('estado', 'pendiente').order('creado_en', { ascending: true }),
+      sb.from('solicitudes_eliminacion').select('*').neq('estado', 'pendiente').order('revisor_en', { ascending: false }).limit(20)
+    ]);
+    mostrarAvisoSinConexion(!!(e1 || e2));
+
+    const contPend = document.getElementById('lista-peticiones-pendientes');
+    contPend.innerHTML = (pendientes || []).length === 0
+      ? `<li class="text-sm text-muted py-4 text-center">No hay peticiones pendientes.</li>`
+      : (pendientes || []).map(filaPeticionPendiente).join('');
+
+    const contHist = document.getElementById('lista-peticiones-historial');
+    contHist.innerHTML = (historial || []).length === 0
+      ? `<li class="text-sm text-muted py-4 text-center">Todavía no se ha resuelto ninguna petición.</li>`
+      : (historial || []).map(filaPeticionHistorial).join('');
+
+    refrescarIconos();
+    await actualizarBadgePeticiones();
+  } else {
+    const { data, error } = await sb.from('solicitudes_eliminacion').select('*').eq('solicitante_id', sesion.id).order('creado_en', { ascending: false });
+    mostrarAvisoSinConexion(!!error);
+
+    const cont = document.getElementById('lista-mis-peticiones');
+    cont.innerHTML = (data || []).length === 0
+      ? `<li class="text-sm text-muted py-6 text-center">No has enviado ninguna petición.</li>`
+      : (data || []).map(filaPeticionPropia).join('');
+  }
+}
+
+function filaPeticionPendiente(p) {
+  const idNota = `peticion-nota-${p.id}`;
+  return `
+    <li class="rounded-xl border border-line p-3 text-sm space-y-2">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="min-w-0">
+          <p class="font-medium truncate">${esc(p.descripcion)} <span class="badge badge-neutral">${etiquetaTipoPeticion(p.tipo)}</span></p>
+          <p class="text-xs text-muted">Pedido por ${esc(p.solicitante_nombre)} · ${new Date(p.creado_en).toLocaleDateString()}</p>
+          ${p.motivo ? `<p class="text-xs mt-1">${esc(p.motivo)}</p>` : ''}
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input type="text" id="${idNota}" placeholder="Nota (opcional)" class="input flex-1 text-xs">
+        <div class="flex gap-2 shrink-0">
+          <button onclick="rechazarPeticion(${p.id}, '${idNota}')" class="btn btn-sm bg-bad-soft text-bad-ink hover:opacity-80">Rechazar</button>
+          <button onclick="aprobarPeticion(${p.id}, '${idNota}')" class="btn btn-sm bg-ok-soft text-ok-ink hover:opacity-80">Aprobar</button>
+        </div>
+      </div>
+    </li>`;
+}
+
+function filaPeticionHistorial(p) {
+  const estado = etiquetaEstadoPeticion(p.estado);
+  return `
+    <li class="flex items-center justify-between gap-3 rounded-lg bg-sunken px-3 py-2 text-sm">
+      <span class="truncate">${esc(p.descripcion)} <span class="text-xs text-muted">· ${esc(p.solicitante_nombre)}</span></span>
+      <span class="badge ${estado.clase} shrink-0">${estado.texto}</span>
+    </li>`;
+}
+
+function filaPeticionPropia(p) {
+  const estado = etiquetaEstadoPeticion(p.estado);
+  return `
+    <li class="rounded-xl border border-line p-3 text-sm space-y-1">
+      <div class="flex items-center justify-between gap-3">
+        <span class="font-medium truncate">${esc(p.descripcion)} <span class="badge badge-neutral">${etiquetaTipoPeticion(p.tipo)}</span></span>
+        <span class="badge ${estado.clase} shrink-0">${estado.texto}</span>
+      </div>
+      <p class="text-xs text-muted">${new Date(p.creado_en).toLocaleDateString()}</p>
+      ${p.nota_admin ? `<p class="text-xs bg-sunken rounded-lg px-2 py-1 mt-1">Nota del encargado: ${esc(p.nota_admin)}</p>` : ''}
+    </li>`;
+}
+
+async function aprobarPeticion(id, idNota) {
+  const nota = document.getElementById(idNota)?.value.trim() || '';
+  const { error } = await sb.rpc('aprobar_eliminacion', { p_id: id, p_nota: nota });
+  if (error) { alert('No se pudo aprobar: ' + error.message); return; }
+
+  await cargarCatalogo();
+  await cargarPCs();
+  actualizarTodo();
+  await renderizarPeticiones();
+}
+
+async function rechazarPeticion(id, idNota) {
+  const nota = document.getElementById(idNota)?.value.trim() || '';
+  const { error } = await sb.rpc('rechazar_eliminacion', { p_id: id, p_nota: nota });
+  if (error) { alert('No se pudo rechazar: ' + error.message); return; }
+  await renderizarPeticiones();
+}
+
+async function contarPeticionesPendientes() {
+  if (!sesion || sesion.rol !== 'admin') return 0;
+  const { count } = await sb.from('solicitudes_eliminacion').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente');
+  return count || 0;
+}
+
+async function actualizarBadgePeticiones() {
+  const badge = document.getElementById('badge-peticiones');
+  if (!sesion || sesion.rol !== 'admin') { badge.classList.add('hidden'); return; }
+  const n = await contarPeticionesPendientes();
+  badge.textContent = n;
+  badge.classList.toggle('hidden', n === 0);
+}
+
+let canalNotificacionesPeticiones = null;
+
+function iniciarNotificacionesPeticiones() {
+  if (canalNotificacionesPeticiones) return;
+
+  canalNotificacionesPeticiones = sb.channel('peticiones-eliminacion')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes_eliminacion' }, async (payload) => {
+      if (sesion && sesion.rol === 'admin') {
+        await actualizarBadgePeticiones();
+        mostrarToastNotificacion(`${payload.new.solicitante_nombre} pidió eliminar: ${payload.new.descripcion}`);
+      }
+      if (_ventanaActual === 'peticiones') renderizarPeticiones();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'solicitudes_eliminacion' }, async () => {
+      await actualizarBadgePeticiones();
+      if (_ventanaActual === 'peticiones') renderizarPeticiones();
+    })
+    .subscribe();
+}
+
+function detenerNotificacionesPeticiones() {
+  if (canalNotificacionesPeticiones) {
+    sb.removeChannel(canalNotificacionesPeticiones);
+    canalNotificacionesPeticiones = null;
+  }
 }
 
 // ============================================================

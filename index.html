@@ -363,6 +363,10 @@
           <i data-lucide="bell" class="w-[18px] h-[18px]"></i> Solicitudes
           <span id="badge-solicitudes" class="hidden ml-auto badge badge-bad">0</span>
         </button>
+        <button id="btn-nav-peticiones" onclick="cambiarVentana('peticiones')" class="nav-item">
+          <i data-lucide="send" class="w-[18px] h-[18px]"></i> Peticiones
+          <span id="badge-peticiones" class="hidden ml-auto badge badge-bad">0</span>
+        </button>
         <button id="btn-nav-configuracion" onclick="cambiarVentana('configuracion')" class="nav-item">
           <i data-lucide="settings" class="w-[18px] h-[18px]"></i> Configuración
         </button>
@@ -723,6 +727,29 @@
           </div>
         </section>
 
+        <!-- VENTANA: PETICIONES DE BORRADO -->
+        <section id="ventana-peticiones" class="hidden space-y-6">
+
+          <!-- Vista de administrador: revisar peticiones de todos -->
+          <div id="peticiones-vista-admin" class="hidden space-y-6">
+            <div class="panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg">Peticiones pendientes</h3>
+              <ul id="lista-peticiones-pendientes" class="space-y-3"></ul>
+            </div>
+            <div class="panel p-5 sm:p-6 space-y-4">
+              <h3 class="font-display font-semibold text-lg">Historial reciente</h3>
+              <ul id="lista-peticiones-historial" class="space-y-2"></ul>
+            </div>
+          </div>
+
+          <!-- Vista de editor: seguimiento de sus propias peticiones -->
+          <div id="peticiones-vista-propia" class="hidden panel p-5 sm:p-6 space-y-4">
+            <h3 class="font-display font-semibold text-lg">Mis peticiones</h3>
+            <p class="text-sm text-muted">Pide la eliminación de un equipo desde "Equipos de cómputo", o de un programa desde el catálogo. Aquí verás si el encargado ya la revisó.</p>
+            <ul id="lista-mis-peticiones" class="space-y-2"></ul>
+          </div>
+        </section>
+
         <!-- VENTANA 5: CONFIGURACIÓN -->
         <section id="ventana-configuracion" class="hidden">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -814,6 +841,31 @@
     <button onclick="deshacerAccion()" class="font-semibold underline underline-offset-2 flex items-center gap-1">
       <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Deshacer
     </button>
+  </div>
+
+  <!-- ============ MODAL: SOLICITAR ELIMINACIÓN ============ -->
+  <div id="modal-solicitar-eliminacion" class="scrim fixed inset-0 hidden flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true">
+    <div class="panel w-full max-w-md p-6 space-y-4 relative shadow-2xl">
+      <button onclick="cerrarModalSolicitarEliminacion()" class="btn btn-ghost btn-square absolute top-3 right-3" aria-label="Cerrar">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="pr-8">
+        <h3 class="font-display font-semibold text-xl">Pedir eliminación</h3>
+        <p id="solicitud-eliminar-descripcion" class="text-sm text-muted mt-1">-</p>
+      </div>
+
+      <form id="form-solicitar-eliminacion" class="space-y-4">
+        <div>
+          <label class="lbl" for="solicitud-eliminar-motivo">¿Por qué debería eliminarse? (opcional)</label>
+          <textarea id="solicitud-eliminar-motivo" rows="3" placeholder="Ej. Ya no existe en el laboratorio" class="input w-full"></textarea>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" onclick="cerrarModalSolicitarEliminacion()" class="btn btn-outline flex-1">Cancelar</button>
+          <button type="submit" class="btn btn-primary flex-1">Enviar petición</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- ============ MODAL: TOUR DE BIENVENIDA ============ -->
@@ -1072,6 +1124,6 @@
     window.SUPABASE_URL = 'https://dnzhjanlarmjgyrdhyqi.supabase.co';
     window.SUPABASE_ANON_KEY = 'sb_publishable_bVNRdEx1KM0gi0NjL2nSwA_KY87JAF8';
   </script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
