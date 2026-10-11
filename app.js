@@ -87,6 +87,9 @@ function refrescarIconos() {
 
 // ÍCONOS (Lucide, lucide.dev, licencia ISC) incrustados para no depender de internet
 const ICONOS = {
+  'bell': "<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"></path><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"></path>",
+  'log-in': "<path d=\"M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4\"></path><polyline points=\"10 17 15 12 10 7\"></polyline><line x1=\"15\" x2=\"3\" y1=\"12\" y2=\"12\"></line>",
+  'shield-check': "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"m9 12 2 2 4-4\"></path>",
   'play': "<polygon points=\"6 3 20 12 6 21 6 3\"></polygon>",
   'square': "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect>",
   'timer': "<line x1=\"10\" x2=\"14\" y1=\"2\" y2=\"2\"></line><line x1=\"12\" x2=\"15\" y1=\"14\" y2=\"11\"></line><circle cx=\"12\" cy=\"14\" r=\"8\"></circle>",
@@ -237,12 +240,18 @@ async function cargarPerfilYEntrar(user) {
   document.getElementById('sesion-rol').textContent = ETIQUETA_ROL[sesion.rol];
   document.getElementById('sesion-inicial').textContent = sesion.nombre.charAt(0).toUpperCase();
   document.getElementById('btn-nav-cuentas').classList.toggle('hidden', sesion.rol !== 'admin');
+  document.getElementById('btn-nav-solicitudes').classList.toggle('hidden', sesion.rol !== 'admin');
   document.getElementById('pantalla-login').classList.add('hidden');
 
   cambiarVentana('dashboard');
   await cargarConfiguracionLab();
   await cargarTodo();
   iniciarPresencia();
+
+  if (sesion.rol === 'admin') {
+    await actualizarBadgeSolicitudes();
+    iniciarNotificacionesHoras();
+  }
 
   if (sesion.rol === 'editor' && perfil && !perfil.tour_visto) {
     abrirTour();
@@ -252,6 +261,7 @@ async function cargarPerfilYEntrar(user) {
 async function cerrarSesion() {
   if (!confirm('¿Quieres cerrar tu sesión?')) return;
   detenerPresencia();
+  detenerNotificacionesHoras();
   if (_temporizadorTurno) clearInterval(_temporizadorTurno);
   await sb.auth.signOut();
   sesion = null;
@@ -326,11 +336,12 @@ const VENTANAS = {
   bitacora:  { boton: 'btn-nav-bitacora',  seccion: 'ventana-bitacora',  titulo: 'Bitácora de mantenimiento', subtitulo: 'Trabajos preventivos, correctivos y actualizaciones' },
   cuentas:   { boton: 'btn-nav-cuentas',   seccion: 'ventana-cuentas',   titulo: 'Cuentas', subtitulo: 'Da de alta o elimina accesos de encargados y prestadores' },
   horas: { boton: 'btn-nav-horas', seccion: 'ventana-horas', titulo: 'Horas de servicio', subtitulo: 'Registra tu turno y consulta tus horas acumuladas' },
+  solicitudes: { boton: 'btn-nav-solicitudes', seccion: 'ventana-solicitudes', titulo: 'Solicitudes', subtitulo: 'Confirma las llegadas y salidas de servicio social' },
   configuracion: { boton: 'btn-nav-configuracion', seccion: 'ventana-configuracion', titulo: 'Configuración', subtitulo: 'Ajustes de tu cuenta y del laboratorio' }
 };
 
 function cambiarVentana(ventana) {
-  if (ventana === 'cuentas' && (!sesion || sesion.rol !== 'admin')) ventana = 'dashboard';
+  if ((ventana === 'cuentas' || ventana === 'solicitudes') && (!sesion || sesion.rol !== 'admin')) ventana = 'dashboard';
 
   Object.entries(VENTANAS).forEach(([clave, v]) => {
     const activa = clave === ventana;
@@ -349,6 +360,7 @@ function cambiarVentana(ventana) {
   if (ventana === 'cuentas') renderizarCuentas();
   if (ventana === 'configuracion') prepararVentanaConfiguracion();
   if (ventana === 'horas') prepararVentanaHoras();
+  if (ventana === 'solicitudes') renderizarSolicitudes();
 
   cerrarMenu();
   refrescarIconos();
@@ -1593,6 +1605,10 @@ function renderizarPresencia() {
 // ============================================================
 // HORAS DE SERVICIO SOCIAL
 // ============================================================
+// Importante: la hora de inicio y fin la pone el servidor (no el navegador
+// de la persona), y cada llegada y cada salida necesitan la confirmación
+// del administrador antes de contar en el total. Por eso todo esto se
+// hace a través de funciones (RPC) y nunca escribiendo la tabla directo.
 
 let _misTurnos = [];
 let _temporizadorTurno = null;
@@ -1610,6 +1626,12 @@ function formatoCronometro(ms) {
   const m = String(Math.floor((totalSeg % 3600) / 60)).padStart(2, '0');
   const s = String(totalSeg % 60).padStart(2, '0');
   return `${h}:${m}:${s}`;
+}
+
+function etiquetaEstado(estado) {
+  if (estado === 'aprobado') return { texto: 'Confirmada', clase: 'badge-ok' };
+  if (estado === 'rechazado') return { texto: 'No confirmada', clase: 'badge-bad' };
+  return { texto: 'Esperando confirmación', clase: 'badge-neutral' };
 }
 
 async function prepararVentanaHoras() {
@@ -1637,18 +1659,29 @@ function renderizarMisTurnos() {
   _misTurnos.forEach(t => {
     const inicio = new Date(t.inicio);
     const fin = t.fin ? new Date(t.fin) : null;
+    const llegada = etiquetaEstado(t.estado_inicio);
+    const salida = t.fin ? etiquetaEstado(t.estado_fin) : null;
+
     const li = document.createElement('li');
-    li.className = "flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-sm";
+    li.className = "rounded-xl border border-line p-3 text-sm space-y-2";
     li.innerHTML = `
-      <div class="min-w-0">
-        <p class="font-medium">${inicio.toLocaleDateString()}</p>
-        <p class="text-xs text-muted">
-          ${inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          –
-          ${fin ? fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'en curso'}
-        </p>
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-medium">${inicio.toLocaleDateString()}</p>
+          <p class="text-xs text-muted">
+            ${inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            –
+            ${fin ? fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'en curso'}
+          </p>
+        </div>
+        <span class="badge ${fin && t.estado_inicio === 'aprobado' && t.estado_fin === 'aprobado' ? 'badge-ok' : 'badge-neutral'}">
+          ${fin && t.estado_inicio === 'aprobado' && t.estado_fin === 'aprobado' ? formatoHorasMin(fin - inicio) : (fin ? 'Sin confirmar' : 'En curso')}
+        </span>
       </div>
-      <span class="badge ${fin ? 'badge-neutral' : 'badge-ok'}">${fin ? formatoHorasMin(fin - inicio) : 'En curso'}</span>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="badge ${llegada.clase}">Llegada: ${llegada.texto}</span>
+        ${salida ? `<span class="badge ${salida.clase}">Salida: ${salida.texto}</span>` : ''}
+      </div>
     `;
     cont.appendChild(li);
   });
@@ -1661,9 +1694,13 @@ function actualizarEstadoTurno() {
   const boton = document.getElementById('btn-turno');
   const estadoTexto = document.getElementById('horas-estado-texto');
   const cronometro = document.getElementById('horas-cronometro');
+  const aviso = document.getElementById('horas-estado-aviso');
 
-  const totalCerrado = _misTurnos.filter(t => t.fin).reduce((acc, t) => acc + (new Date(t.fin) - new Date(t.inicio)), 0);
-  document.getElementById('horas-total-propio').textContent = formatoHorasMin(totalCerrado);
+  // Solo cuentan los turnos donde tanto la llegada como la salida ya fueron confirmadas
+  const totalAprobado = _misTurnos
+    .filter(t => t.fin && t.estado_inicio === 'aprobado' && t.estado_fin === 'aprobado')
+    .reduce((acc, t) => acc + (new Date(t.fin) - new Date(t.inicio)), 0);
+  document.getElementById('horas-total-propio').textContent = formatoHorasMin(totalAprobado);
 
   if (abierto) {
     boton.innerHTML = `<i data-lucide="square" class="w-4 h-4"></i> Terminar turno`;
@@ -1672,10 +1709,31 @@ function actualizarEstadoTurno() {
     const pintar = () => { cronometro.textContent = formatoCronometro(new Date() - new Date(abierto.inicio)); };
     pintar();
     _temporizadorTurno = setInterval(pintar, 1000);
+
+    if (abierto.estado_inicio === 'pendiente') {
+      aviso.textContent = 'Tu llegada está esperando la confirmación del encargado.';
+      aviso.className = 'text-xs rounded-lg px-3 py-2 bg-warn-soft text-warn-ink';
+    } else if (abierto.estado_inicio === 'rechazado') {
+      aviso.textContent = 'El encargado marcó que no confirmó tu llegada. Este turno no contará.';
+      aviso.className = 'text-xs rounded-lg px-3 py-2 bg-bad-soft text-bad-ink';
+    } else {
+      aviso.className = 'hidden';
+    }
   } else {
     boton.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> Iniciar turno`;
     estadoTexto.textContent = 'No tienes un turno activo.';
     cronometro.textContent = '00:00:00';
+
+    const ultimo = _misTurnos[0];
+    if (ultimo && ultimo.fin && ultimo.estado_fin === 'pendiente') {
+      aviso.textContent = 'Tu última salida está esperando la confirmación del encargado.';
+      aviso.className = 'text-xs rounded-lg px-3 py-2 bg-warn-soft text-warn-ink';
+    } else if (ultimo && ultimo.fin && ultimo.estado_fin === 'rechazado') {
+      aviso.textContent = 'El encargado marcó que no confirmó tu última salida. Ese turno no contará.';
+      aviso.className = 'text-xs rounded-lg px-3 py-2 bg-bad-soft text-bad-ink';
+    } else {
+      aviso.className = 'hidden';
+    }
   }
   refrescarIconos();
 }
@@ -1685,15 +1743,13 @@ async function alternarTurno() {
   const boton = document.getElementById('btn-turno');
   boton.disabled = true;
 
-  if (abierto) {
-    const { error } = await sb.from('turnos_servicio').update({ fin: new Date().toISOString() }).eq('id', abierto.id);
-    if (error) { alert('No se pudo cerrar el turno: ' + error.message); boton.disabled = false; return; }
-  } else {
-    const { error } = await sb.from('turnos_servicio').insert({ usuario_id: sesion.id, inicio: new Date().toISOString() });
-    if (error) { alert('No se pudo iniciar el turno: ' + error.message); boton.disabled = false; return; }
-  }
+  const { error } = abierto
+    ? await sb.rpc('terminar_turno')
+    : await sb.rpc('iniciar_turno');
 
   boton.disabled = false;
+  if (error) { alert('No se pudo registrar: ' + error.message); return; }
+
   await prepararVentanaHoras();
 }
 
@@ -1703,13 +1759,13 @@ async function renderizarResumenHoras() {
 
   const [{ data: perfiles }, { data: turnos }] = await Promise.all([
     sb.from('profiles').select('id,nombre,rol'),
-    sb.from('turnos_servicio').select('usuario_id,inicio,fin')
+    sb.from('turnos_servicio').select('usuario_id,inicio,fin,estado_inicio,estado_fin')
   ]);
 
   const totales = {};
-  (turnos || []).filter(t => t.fin).forEach(t => {
-    totales[t.usuario_id] = (totales[t.usuario_id] || 0) + (new Date(t.fin) - new Date(t.inicio));
-  });
+  (turnos || [])
+    .filter(t => t.fin && t.estado_inicio === 'aprobado' && t.estado_fin === 'aprobado')
+    .forEach(t => { totales[t.usuario_id] = (totales[t.usuario_id] || 0) + (new Date(t.fin) - new Date(t.inicio)); });
 
   const filas = (perfiles || [])
     .map(p => ({ ...p, total: totales[p.id] || 0 }))
@@ -1717,7 +1773,7 @@ async function renderizarResumenHoras() {
 
   cont.innerHTML = '';
   if (filas.every(f => f.total === 0)) {
-    cont.innerHTML = `<li class="text-sm text-muted py-4 text-center">Todavía no hay turnos registrados.</li>`;
+    cont.innerHTML = `<li class="text-sm text-muted py-4 text-center">Todavía no hay turnos confirmados.</li>`;
     return;
   }
 
@@ -1730,6 +1786,145 @@ async function renderizarResumenHoras() {
     `;
     cont.appendChild(li);
   });
+}
+
+// ============================================================
+// SOLICITUDES: el administrador confirma llegadas y salidas
+// ============================================================
+
+let _mapaNombresPerfiles = {};
+
+async function cargarMapaNombres() {
+  const { data } = await sb.from('profiles').select('id,nombre');
+  _mapaNombresPerfiles = {};
+  (data || []).forEach(p => { _mapaNombresPerfiles[p.id] = p.nombre; });
+}
+
+async function contarSolicitudesPendientes() {
+  if (!sesion || sesion.rol !== 'admin') return 0;
+  const { count } = await sb.from('turnos_servicio')
+    .select('id', { count: 'exact', head: true })
+    .or('estado_inicio.eq.pendiente,estado_fin.eq.pendiente');
+  return count || 0;
+}
+
+async function actualizarBadgeSolicitudes() {
+  if (!sesion || sesion.rol !== 'admin') return;
+  const n = await contarSolicitudesPendientes();
+  const badge = document.getElementById('badge-solicitudes');
+  badge.textContent = n;
+  badge.classList.toggle('hidden', n === 0);
+}
+
+async function renderizarSolicitudes() {
+  await cargarMapaNombres();
+
+  const { data, error } = await sb.from('turnos_servicio').select('*')
+    .or('estado_inicio.eq.pendiente,estado_fin.eq.pendiente')
+    .order('inicio', { ascending: true });
+  mostrarAvisoSinConexion(!!error);
+
+  const todas = data || [];
+  const llegadas = todas.filter(t => t.estado_inicio === 'pendiente');
+  const salidas = todas.filter(t => t.fin && t.estado_fin === 'pendiente');
+
+  const contLlegadas = document.getElementById('lista-solicitudes-llegada');
+  const contSalidas = document.getElementById('lista-solicitudes-salida');
+
+  contLlegadas.innerHTML = llegadas.length === 0
+    ? `<li class="text-sm text-muted py-4 text-center">No hay llegadas pendientes de confirmar.</li>`
+    : llegadas.map(t => filaSolicitud(t, 'llegada')).join('');
+
+  contSalidas.innerHTML = salidas.length === 0
+    ? `<li class="text-sm text-muted py-4 text-center">No hay salidas pendientes de confirmar.</li>`
+    : salidas.map(t => filaSolicitud(t, 'salida')).join('');
+
+  refrescarIconos();
+  await actualizarBadgeSolicitudes();
+}
+
+function filaSolicitud(t, tipo) {
+  const nombre = _mapaNombresPerfiles[t.usuario_id] || 'Alguien';
+  const hora = new Date(tipo === 'llegada' ? t.inicio : t.fin).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const pregunta = tipo === 'llegada' ? '¿Sí llegó?' : '¿Sí se fue?';
+  const fn = tipo === 'llegada' ? 'revisarLlegada' : 'revisarSalida';
+
+  return `
+    <li class="flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-sm">
+      <div class="min-w-0">
+        <p class="font-medium truncate">${esc(nombre)}</p>
+        <p class="text-xs text-muted">${hora} · ${pregunta}</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="${fn}(${t.id}, false)" class="btn btn-sm bg-bad-soft text-bad-ink hover:opacity-80">No</button>
+        <button onclick="${fn}(${t.id}, true)" class="btn btn-sm bg-ok-soft text-ok-ink hover:opacity-80">Sí</button>
+      </div>
+    </li>`;
+}
+
+async function revisarLlegada(turnoId, aprobar) {
+  const { error } = await sb.rpc('revisar_llegada', { p_turno_id: turnoId, p_aprobar: aprobar });
+  if (error) { alert('No se pudo registrar: ' + error.message); return; }
+  await renderizarSolicitudes();
+}
+
+async function revisarSalida(turnoId, aprobar) {
+  const { error } = await sb.rpc('revisar_salida', { p_turno_id: turnoId, p_aprobar: aprobar });
+  if (error) { alert('No se pudo registrar: ' + error.message); return; }
+  await renderizarSolicitudes();
+}
+
+// Avisa al administrador en vivo cuando alguien marca su llegada o su salida
+let canalNotificacionesHoras = null;
+let _temporizadorToastNotificacion = null;
+
+function mostrarToastNotificacion(texto) {
+  document.getElementById('toast-notificacion-texto').textContent = texto;
+  document.getElementById('toast-notificacion').classList.remove('hidden');
+  document.getElementById('toast-notificacion').classList.add('flex');
+  refrescarIconos();
+
+  if (_temporizadorToastNotificacion) clearTimeout(_temporizadorToastNotificacion);
+  _temporizadorToastNotificacion = setTimeout(ocultarToastNotificacion, 7000);
+}
+
+function ocultarToastNotificacion() {
+  document.getElementById('toast-notificacion').classList.add('hidden');
+  document.getElementById('toast-notificacion').classList.remove('flex');
+}
+
+function iniciarNotificacionesHoras() {
+  if (canalNotificacionesHoras) return;
+
+  canalNotificacionesHoras = sb.channel('solicitudes-horas')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'turnos_servicio' }, async (payload) => {
+      await actualizarBadgeSolicitudes();
+      const nombre = await nombrePorIdConCache(payload.new.usuario_id);
+      mostrarToastNotificacion(`${nombre} marcó su llegada. Ve a Solicitudes para confirmarla.`);
+      if (_ventanaActual === 'solicitudes') renderizarSolicitudes();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'turnos_servicio' }, async (payload) => {
+      await actualizarBadgeSolicitudes();
+      if (payload.new.fin && payload.old.fin === null) {
+        const nombre = await nombrePorIdConCache(payload.new.usuario_id);
+        mostrarToastNotificacion(`${nombre} marcó su salida. Ve a Solicitudes para confirmarla.`);
+      }
+      if (_ventanaActual === 'solicitudes') renderizarSolicitudes();
+      if (_ventanaActual === 'horas') prepararVentanaHoras();
+    })
+    .subscribe();
+}
+
+function detenerNotificacionesHoras() {
+  if (canalNotificacionesHoras) {
+    sb.removeChannel(canalNotificacionesHoras);
+    canalNotificacionesHoras = null;
+  }
+}
+
+async function nombrePorIdConCache(id) {
+  if (!_mapaNombresPerfiles[id]) await cargarMapaNombres();
+  return _mapaNombresPerfiles[id] || 'Alguien';
 }
 
 // ============================================================

@@ -359,6 +359,10 @@
         <button id="btn-nav-horas" onclick="cambiarVentana('horas')" class="nav-item">
           <i data-lucide="timer" class="w-[18px] h-[18px]"></i> Horas de servicio
         </button>
+        <button id="btn-nav-solicitudes" onclick="cambiarVentana('solicitudes')" class="nav-item hidden">
+          <i data-lucide="bell" class="w-[18px] h-[18px]"></i> Solicitudes
+          <span id="badge-solicitudes" class="hidden ml-auto badge badge-bad">0</span>
+        </button>
         <button id="btn-nav-configuracion" onclick="cambiarVentana('configuracion')" class="nav-item">
           <i data-lucide="settings" class="w-[18px] h-[18px]"></i> Configuración
         </button>
@@ -676,6 +680,7 @@
               <p class="text-sm text-muted">Tu turno actual</p>
               <p id="horas-cronometro" class="font-display text-4xl font-semibold tabular">00:00:00</p>
               <p id="horas-estado-texto" class="text-sm text-muted">No tienes un turno activo.</p>
+              <p id="horas-estado-aviso" class="hidden text-xs rounded-lg px-3 py-2"></p>
               <button id="btn-turno" onclick="alternarTurno()" class="btn btn-primary w-full py-2.5">
                 <i data-lucide="play" class="w-4 h-4"></i> Iniciar turno
               </button>
@@ -698,6 +703,23 @@
             <h3 class="font-display font-semibold text-lg">Resumen por persona</h3>
             <p class="text-sm text-muted">Total de horas acumuladas por cada cuenta, útil para las cartas de liberación de servicio social.</p>
             <ul id="lista-resumen-horas" class="space-y-2"></ul>
+          </div>
+        </section>
+
+        <!-- VENTANA: SOLICITUDES (solo administrador) -->
+        <section id="ventana-solicitudes" class="hidden space-y-6">
+          <div class="panel p-5 sm:p-6 space-y-4">
+            <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+              <i data-lucide="log-in" class="w-5 h-5 text-brand"></i> Llegadas por confirmar
+            </h3>
+            <ul id="lista-solicitudes-llegada" class="space-y-2"></ul>
+          </div>
+
+          <div class="panel p-5 sm:p-6 space-y-4">
+            <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+              <i data-lucide="log-out" class="w-5 h-5 text-brand"></i> Salidas por confirmar
+            </h3>
+            <ul id="lista-solicitudes-salida" class="space-y-2"></ul>
           </div>
         </section>
 
@@ -775,6 +797,15 @@
 
       </div>
     </main>
+  </div>
+
+  <!-- AVISO FLOTANTE DE NOTIFICACIONES (solo para el administrador) -->
+  <div id="toast-notificacion" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] bg-brand text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm max-w-[90vw]">
+    <i data-lucide="bell" class="w-4 h-4 shrink-0"></i>
+    <span id="toast-notificacion-texto" class="min-w-0"></span>
+    <button onclick="ocultarToastNotificacion()" class="shrink-0 opacity-80 hover:opacity-100">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
   </div>
 
   <!-- AVISO FLOTANTE DE "DESHACER" -->
@@ -1041,6 +1072,6 @@
     window.SUPABASE_URL = 'https://dnzhjanlarmjgyrdhyqi.supabase.co';
     window.SUPABASE_ANON_KEY = 'sb_publishable_bVNRdEx1KM0gi0NjL2nSwA_KY87JAF8';
   </script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
