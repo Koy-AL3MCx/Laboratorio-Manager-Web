@@ -263,6 +263,7 @@ async function cargarPerfilYEntrar(user) {
   await cargarConfiguracionLab();
   await cargarTodo();
   iniciarPresencia();
+  iniciarSincronizacionMiTurno();
 
   if (sesion.rol === 'admin') {
     await actualizarBadgeSolicitudes();
@@ -281,6 +282,7 @@ async function cerrarSesion() {
   detenerPresencia();
   detenerNotificacionesHoras();
   detenerNotificacionesPeticiones();
+  detenerSincronizacionMiTurno();
   if (_temporizadorTurno) clearInterval(_temporizadorTurno);
   await sb.auth.signOut();
   sesion = null;
@@ -1414,6 +1416,7 @@ function renderizarNotasRapidas() {
   notasRapidas.forEach(nota => {
     const pc = nota.computadora_id ? listaPCs.find(p => p.id === nota.computadora_id) : null;
     const puedeEliminarNota = sesion && (sesion.id === nota.autor_id || sesion.rol === 'admin');
+    const resumenNota = nota.texto.length > 60 ? nota.texto.slice(0, 60) + '…' : nota.texto;
 
     const li = document.createElement('li');
     li.className = "rounded-lg bg-sunken p-3 space-y-1.5 text-sm";
@@ -1423,7 +1426,10 @@ function renderizarNotasRapidas() {
         ${puedeEliminarNota ? `
         <button onclick="eliminarNotaRapida(${nota.id})" title="Eliminar nota" aria-label="Eliminar nota" class="btn btn-ghost btn-square shrink-0 -mt-1 -mr-1">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-        </button>` : ''}
+        </button>` : `
+        <button onclick="solicitarEliminacion('nota', ${nota.id}, 'Nota: ${escAtributoJS(resumenNota)}')" title="Pedirle al encargado que la elimine" aria-label="Pedir eliminación de esta nota" class="btn btn-ghost btn-square shrink-0 -mt-1 -mr-1">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        </button>`}
       </div>
       <div class="flex items-center gap-2 flex-wrap text-xs text-muted">
         ${pc ? `<span class="badge badge-neutral">${esc(pc.nombre)}</span>` : ''}
@@ -1645,11 +1651,32 @@ function formatoHorasMin(ms) {
 }
 
 function formatoCronometro(ms) {
-  const totalSeg = Math.floor(ms / 1000);
+  const totalSeg = Math.max(0, Math.floor(ms / 1000)); // nunca negativo, por si la hora se corrige a un instante muy reciente
   const h = String(Math.floor(totalSeg / 3600)).padStart(2, '0');
   const m = String(Math.floor((totalSeg % 3600) / 60)).padStart(2, '0');
   const s = String(totalSeg % 60).padStart(2, '0');
   return `${h}:${m}:${s}`;
+}
+
+// Para que cada quien vea al instante cuando el administrador confirma,
+// rechaza o corrige la hora de SU PROPIO turno, sin tener que recargar.
+let canalMiTurno = null;
+
+function iniciarSincronizacionMiTurno() {
+  if (canalMiTurno) return;
+
+  canalMiTurno = sb.channel(`mi-turno-${sesion.id}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos_servicio', filter: `usuario_id=eq.${sesion.id}` }, () => {
+      if (_ventanaActual === 'horas') prepararVentanaHoras();
+    })
+    .subscribe();
+}
+
+function detenerSincronizacionMiTurno() {
+  if (canalMiTurno) {
+    sb.removeChannel(canalMiTurno);
+    canalMiTurno = null;
+  }
 }
 
 function etiquetaEstado(estado) {
@@ -2039,6 +2066,7 @@ function etiquetaEstadoPeticion(estado) {
 function etiquetaTipoPeticion(tipo) {
   if (tipo === 'computadora') return 'Equipo';
   if (tipo === 'programa') return 'Programa';
+  if (tipo === 'nota') return 'Nota';
   return 'Otro';
 }
 
@@ -2127,6 +2155,7 @@ async function aprobarPeticion(id, idNota) {
 
   await cargarCatalogo();
   await cargarPCs();
+  await cargarNotasRapidas();
   actualizarTodo();
   await renderizarPeticiones();
 }
