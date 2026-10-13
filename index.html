@@ -515,6 +515,9 @@
               <button onclick="exportarCSV()" class="btn btn-outline">
                 <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
               </button>
+              <button id="btn-exportar-pdf" onclick="exportarReportePDF()" class="btn btn-outline">
+                <i data-lucide="file-text" class="w-4 h-4"></i> <span class="sm:hidden">PDF</span><span class="hidden sm:inline">Reporte PDF</span>
+              </button>
               <button onclick="abrirModalCatalogoSoftware()" class="btn btn-outline">
                 <i data-lucide="box" class="w-4 h-4"></i> <span class="sm:hidden">Programas</span><span class="hidden sm:inline">Catálogo de programas</span>
               </button>
@@ -1117,6 +1120,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     // Datos de conexión de tu proyecto de Supabase.
     // La "anon key" está pensada para ir en el navegador: por sí sola no permite
@@ -1124,6 +1128,6 @@
     window.SUPABASE_URL = 'https://dnzhjanlarmjgyrdhyqi.supabase.co';
     window.SUPABASE_ANON_KEY = 'sb_publishable_bVNRdEx1KM0gi0NjL2nSwA_KY87JAF8';
   </script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

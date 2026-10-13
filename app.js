@@ -100,6 +100,7 @@ function refrescarIconos() {
 
 // ÍCONOS (Lucide, lucide.dev, licencia ISC) incrustados para no depender de internet
 const ICONOS = {
+  'file-text': "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 9H8\"></path><path d=\"M16 13H8\"></path><path d=\"M16 17H8\"></path>",
   'clock': "<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><polyline points=\"12 6 12 12 16 14\"></polyline>",
   'send': "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"></path><path d=\"m21.854 2.147-10.94 10.939\"></path>",
   'edit-3': "<path d=\"M12 20h9\"></path><path d=\"M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z\"></path><path d=\"m15 5 3 3\"></path>",
@@ -921,6 +922,244 @@ function exportarCSV() {
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============================================================
+// REPORTE EN PDF (para entregar a la dirección cada semestre)
+// ============================================================
+
+const PDF_MORADO = [124, 58, 237];
+const PDF_GRIS_TEXTO = [60, 60, 60];
+const PDF_GRIS_CLARO = [243, 240, 250];
+const PDF_MARGEN = 15;
+
+async function exportarReportePDF() {
+  if (listaPCs.length === 0) { alert('No hay equipos para incluir en el reporte.'); return; }
+
+  const boton = document.getElementById('btn-exportar-pdf');
+  const contenidoOriginal = boton.innerHTML;
+  boton.disabled = true;
+  boton.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Generando...`;
+  refrescarIconos();
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const anchoPagina = doc.internal.pageSize.getWidth();
+    const altoPagina = doc.internal.pageSize.getHeight();
+    let y = PDF_MARGEN;
+
+    function nuevaPaginaSiHaceFalta(alturaNecesaria) {
+      if (y + alturaNecesaria > altoPagina - PDF_MARGEN) {
+        doc.addPage();
+        y = PDF_MARGEN;
+      }
+    }
+
+    function tituloSeccion(texto) {
+      nuevaPaginaSiHaceFalta(14);
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...PDF_MORADO);
+      doc.text(texto, PDF_MARGEN, y);
+      y += 2;
+      doc.setDrawColor(...PDF_MORADO);
+      doc.setLineWidth(0.4);
+      doc.line(PDF_MARGEN, y, anchoPagina - PDF_MARGEN, y);
+      y += 7;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...PDF_GRIS_TEXTO);
+    }
+
+    function parrafo(texto) {
+      const lineas = doc.splitTextToSize(texto, anchoPagina - PDF_MARGEN * 2);
+      nuevaPaginaSiHaceFalta(lineas.length * 5 + 3);
+      doc.text(lineas, PDF_MARGEN, y);
+      y += lineas.length * 5 + 3;
+    }
+
+    // Dibuja una tabla sencilla con encabezados, ancho de columnas en mm y
+    // ajuste de línea por celda, controlando saltos de página fila por fila.
+    function tabla(encabezados, filas, anchos) {
+      const alturaFila = 7;
+      const xInicial = PDF_MARGEN;
+
+      function encabezadoTabla() {
+        doc.setFillColor(...PDF_MORADO);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(9);
+        doc.rect(xInicial, y, anchos.reduce((a, b) => a + b, 0), alturaFila, 'F');
+        let x = xInicial;
+        encabezados.forEach((texto, i) => {
+          doc.text(texto, x + 2, y + alturaFila - 2.3);
+          x += anchos[i];
+        });
+        y += alturaFila;
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(...PDF_GRIS_TEXTO);
+      }
+
+      nuevaPaginaSiHaceFalta(alturaFila * 2);
+      encabezadoTabla();
+
+      filas.forEach((fila, indiceFila) => {
+        doc.setFontSize(8.5);
+        const lineasCelda = fila.map((texto, i) => doc.splitTextToSize(String(texto ?? ''), anchos[i] - 4));
+        const alturaNecesaria = Math.max(alturaFila, Math.max(...lineasCelda.map(l => l.length)) * 4 + 3);
+
+        if (y + alturaNecesaria > altoPagina - PDF_MARGEN) {
+          doc.addPage();
+          y = PDF_MARGEN;
+          encabezadoTabla();
+        }
+
+        if (indiceFila % 2 === 0) {
+          doc.setFillColor(...PDF_GRIS_CLARO);
+          doc.rect(xInicial, y, anchos.reduce((a, b) => a + b, 0), alturaNecesaria, 'F');
+        }
+
+        let x = xInicial;
+        lineasCelda.forEach((lineas, i) => {
+          doc.text(lineas, x + 2, y + 5);
+          x += anchos[i];
+        });
+        y += alturaNecesaria;
+      });
+
+      y += 6;
+    }
+
+    // ---------- ENCABEZADO ----------
+    doc.setFillColor(...PDF_MORADO);
+    doc.rect(0, 0, anchoPagina, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(18);
+    doc.text(nombreLaboratorio, PDF_MARGEN, 14);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text('Reporte del laboratorio', PDF_MARGEN, 21);
+    const fechaTexto = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+    doc.text(`Generado el ${fechaTexto} por ${sesion.nombre}`, PDF_MARGEN, 26);
+    y = 38;
+    doc.setTextColor(...PDF_GRIS_TEXTO);
+
+    // ---------- RESUMEN GENERAL ----------
+    tituloSeccion('Resumen general');
+    const total = listaPCs.length;
+    const funcionales = listaPCs.filter(pc => pc.funcional).length;
+    const conAtencion = total - funcionales;
+    const conInternet = listaPCs.filter(pc => pc.internet).length;
+
+    const sistemasOperativos = {};
+    listaPCs.forEach(pc => { const so = pc.so || 'Sin especificar'; sistemasOperativos[so] = (sistemasOperativos[so] || 0) + 1; });
+
+    parrafo(`El laboratorio cuenta con ${total} equipos registrados. ${funcionales} funcionan correctamente y ${conAtencion} requieren atención. ${conInternet} tienen conexión a internet.`);
+
+    tabla(
+      ['Sistema operativo', 'Cantidad de equipos'],
+      Object.entries(sistemasOperativos).map(([so, n]) => [so, String(n)]),
+      [130, 50]
+    );
+
+    // ---------- EQUIPOS ----------
+    tituloSeccion('Equipos de cómputo');
+    tabla(
+      ['Equipo', 'Marca', 'Sistema operativo', 'Estado', 'Ubicación'],
+      listaPCs.map(pc => [pc.nombre, pc.marca, pc.so || '-', pc.funcional ? 'Funcional' : 'Con atención', pc.ubicacion || '-']),
+      [35, 40, 35, 30, 40]
+    );
+
+    // ---------- PROGRAMAS ----------
+    if (catalogoProgramas.length > 0) {
+      tituloSeccion('Catálogo de programas');
+      tabla(
+        ['Programa', 'Funcional', 'Con fallo', 'No instalado'],
+        catalogoProgramas.map(prog => {
+          let ok = 0, falla = 0, no = 0;
+          listaPCs.forEach(pc => {
+            const estado = (pc.softwareEstado && pc.softwareEstado[prog.nombre]) || 'no_instalado';
+            if (estado === 'funcional') ok++;
+            else if (estado === 'no_funcional') falla++;
+            else no++;
+          });
+          return [prog.nombre, String(ok), String(falla), String(no)];
+        }),
+        [70, 35, 35, 40]
+      );
+    }
+
+    // ---------- BITÁCORA ----------
+    let todosEventos = [];
+    listaPCs.forEach(pc => (pc.bitacora || []).forEach(e => todosEventos.push({ ...e, pcNombre: pc.nombre })));
+    todosEventos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    if (todosEventos.length > 0) {
+      tituloSeccion('Bitácora de mantenimiento');
+      const conteoTipos = {};
+      todosEventos.forEach(e => { conteoTipos[e.tipo] = (conteoTipos[e.tipo] || 0) + 1; });
+      parrafo(`Se han registrado ${todosEventos.length} eventos de mantenimiento: ` +
+        Object.entries(conteoTipos).map(([tipo, n]) => `${n} de tipo ${tipo}`).join(', ') + '.');
+
+      tabla(
+        ['Fecha', 'Equipo', 'Tipo', 'Descripción', 'Registrado por'],
+        todosEventos.slice(0, 20).map(e => [e.fecha, e.pcNombre, e.tipo, e.desc, e.autor || '-']),
+        [25, 30, 28, 62, 30]
+      );
+      if (todosEventos.length > 20) parrafo(`Se muestran los 20 registros más recientes, de un total de ${todosEventos.length}.`);
+    }
+
+    // ---------- PENDIENTES ----------
+    if (pendientes.length > 0) {
+      tituloSeccion('Pendientes activos');
+      tabla(['Pendiente'], pendientes.map(p => [p.texto]), [175]);
+    }
+
+    // ---------- HORAS DE SERVICIO (solo si quien genera el reporte es admin) ----------
+    if (sesion.rol === 'admin') {
+      const [{ data: perfiles }, { data: turnos }] = await Promise.all([
+        sb.from('profiles').select('id,nombre,rol'),
+        sb.from('turnos_servicio').select('usuario_id,inicio,fin,estado_inicio,estado_fin')
+      ]);
+
+      const totales = {};
+      (turnos || []).filter(t => t.fin && t.estado_inicio === 'aprobado' && t.estado_fin === 'aprobado')
+        .forEach(t => { totales[t.usuario_id] = (totales[t.usuario_id] || 0) + (new Date(t.fin) - new Date(t.inicio)); });
+
+      const filasHoras = (perfiles || [])
+        .map(p => ({ ...p, total: totales[p.id] || 0 }))
+        .filter(p => p.total > 0)
+        .sort((a, b) => b.total - a.total);
+
+      if (filasHoras.length > 0) {
+        tituloSeccion('Horas de servicio social');
+        tabla(
+          ['Nombre', 'Rol', 'Horas confirmadas'],
+          filasHoras.map(p => [p.nombre, p.rol === 'admin' ? 'Administrador' : 'Editor', formatoHorasMin(p.total)]),
+          [80, 50, 45]
+        );
+      }
+    }
+
+    // ---------- PIE DE PÁGINA (número de página) ----------
+    const totalPaginas = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPaginas; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`${nombreLaboratorio} · Página ${i} de ${totalPaginas}`, anchoPagina / 2, altoPagina - 8, { align: 'center' });
+    }
+
+    doc.save(`Reporte_${nombreLaboratorio.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  } catch (e) {
+    alert('No se pudo generar el PDF: ' + e.message);
+  } finally {
+    boton.disabled = false;
+    boton.innerHTML = contenidoOriginal;
+    refrescarIconos();
+  }
 }
 
 // ============================================================
@@ -2240,14 +2479,19 @@ function pasosTour() {
     {
       icono: 'timer',
       titulo: 'Tus horas de servicio',
-      texto: 'En "Horas de servicio" puedes marcar cuándo llegas y cuándo te vas. Ahí se va sumando tu tiempo, útil para tu carta de liberación.'
+      texto: 'En "Horas de servicio" marcas con un botón cuándo llegas y cuándo te vas. Tanto tu llegada como tu salida necesitan que el encargado las confirme antes de contar como horas oficiales, así que si algo no cuadra, pídele que la revise.'
     },
     {
-      icono: esEditor ? 'lock' : 'book-open',
-      titulo: esEditor ? 'Lo que no puedes hacer' : 'Un último detalle',
+      icono: esEditor ? 'send' : 'bell',
+      titulo: esEditor ? 'Pide lo que no puedas borrar' : '"Solicitudes" y "Peticiones"',
       texto: esEditor
-        ? 'Como editor puedes agregar y modificar casi todo, pero no puedes borrar equipos, programas ni cuentas. Si algo necesita eliminarse, pídeselo a un encargado.'
-        : 'Puedes volver a ver este tour cuando quieras desde Configuración. ¡Listo para empezar!'
+        ? 'Como editor puedes agregar y modificar casi todo, pero no puedes borrar equipos, programas ni notas ajenas. Si algo debe eliminarse, pídelo desde "Peticiones" y el encargado decide si lo aprueba.'
+        : 'En "Solicitudes" confirmas las llegadas y salidas de servicio social (y puedes corregir la hora si hace falta). En "Peticiones" apruebas o rechazas lo que otros pidan eliminar. Te avisamos al instante cuando llega algo nuevo.'
+    },
+    {
+      icono: 'book-open',
+      titulo: 'Un último detalle',
+      texto: 'Puedes volver a ver este tour cuando quieras desde Configuración. ¡Listo para empezar!'
     }
   ];
 }
