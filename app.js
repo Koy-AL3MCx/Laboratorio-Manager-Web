@@ -476,6 +476,7 @@ function abrirModalPC(id = null) {
     editIdInput.value = id;
     document.getElementById('pc-nombre').value = pc.nombre;
     document.getElementById('pc-marca').value = pc.marca;
+    document.getElementById('pc-numero-serie').value = pc.numero_serie || '';
     document.getElementById('pc-ubicacion').value = pc.ubicacion || '';
     document.getElementById('pc-ubicacion-original').value = pc.ubicacion || '';
     document.getElementById('pc-motivo-movimiento').value = '';
@@ -557,6 +558,7 @@ formPC.addEventListener('submit', async (e) => {
   const datosPC = {
     nombre: document.getElementById('pc-nombre').value.trim(),
     marca: document.getElementById('pc-marca').value.trim(),
+    numero_serie: document.getElementById('pc-numero-serie').value.trim(),
     ubicacion: document.getElementById('pc-ubicacion').value.trim(),
     so: document.getElementById('pc-so').value,
     mac: document.getElementById('pc-mac').value.trim(),
@@ -713,7 +715,8 @@ function obtenerPCsFiltradas() {
                        pc.marca.toLowerCase().includes(query) ||
                        (pc.so && pc.so.toLowerCase().includes(query)) ||
                        pc.mac.toLowerCase().includes(query) ||
-                       (pc.ip && pc.ip.toLowerCase().includes(query));
+                       (pc.ip && pc.ip.toLowerCase().includes(query)) ||
+                       (pc.numero_serie && pc.numero_serie.toLowerCase().includes(query));
     if (!matchQuery) return false;
 
     if (filtroEstadoActual === 'funcional' && !pc.funcional) return false;
@@ -817,6 +820,7 @@ function crearFilaPC(pc) {
     <td class="px-4 py-3 whitespace-nowrap">
       <p class="font-semibold">${esc(pc.nombre)}</p>
       <p class="text-xs text-muted">${esc(pc.marca)}</p>
+      ${pc.numero_serie ? `<p class="text-xs text-muted font-mono">N/S: ${esc(pc.numero_serie)}</p>` : ''}
       ${pc.ubicacion ? `<p class="text-xs text-muted flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${esc(pc.ubicacion)}</p>` : ''}
     </td>
     <td class="px-4 py-3 whitespace-nowrap"><span class="badge badge-neutral">${esc(pc.so || 'Windows 11')}</span></td>
@@ -846,6 +850,7 @@ function crearTarjetaPC(pc) {
       <div class="min-w-0">
         <p class="font-semibold truncate">${esc(pc.nombre)}</p>
         <p class="text-sm text-muted truncate">${esc(pc.marca)}</p>
+        ${pc.numero_serie ? `<p class="text-xs text-muted font-mono truncate">N/S: ${esc(pc.numero_serie)}</p>` : ''}
         ${pc.ubicacion ? `<p class="text-xs text-muted flex items-center gap-1 mt-0.5"><i data-lucide="map-pin" class="w-3 h-3"></i>${esc(pc.ubicacion)}</p>` : ''}
       </div>
       <div class="shrink-0">${insigniaEstadoHTML(pc)}</div>
@@ -901,10 +906,10 @@ function csvCampo(valor) {
 function exportarCSV() {
   if (listaPCs.length === 0) { alert("No hay equipos para exportar."); return; }
 
-  const filas = [["Equipo", "Marca", "Sistema Operativo", "MAC", "Internet", "IP", "Estado", "Detalle Problema"]];
+  const filas = [["Equipo", "Marca", "Numero de Serie", "Sistema Operativo", "MAC", "Internet", "IP", "Estado", "Detalle Problema"]];
   listaPCs.forEach(pc => {
     filas.push([
-      pc.nombre, pc.marca, pc.so || 'Windows 11', pc.mac,
+      pc.nombre, pc.marca, pc.numero_serie || "", pc.so || 'Windows 11', pc.mac,
       pc.internet ? "Si" : "No",
       pc.internet ? (pc.ip || "Sin IP registrada") : "",
       pc.funcional ? "Funcional" : "Atencion",
